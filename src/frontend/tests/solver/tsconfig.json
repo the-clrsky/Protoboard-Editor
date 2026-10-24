@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "out",
+    "rootDir": "../..",
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["*"]
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": []
+  },
+  "files": [
+    "../../components/stripboard/autoFinish.ts",
+    "../../components/stripboard/autoPlace.ts",
+    "../../components/stripboard/autoLayout.ts",
+    "../../components/stripboard/autoLayout2.ts",
+    "../../components/stripboard/autoLayout3.ts",
+    "../../components/stripboard/autoLayout5.ts",
+    "../../components/stripboard/autoLayout5Split.ts",
+    "../../components/stripboard/autoLayout5Stack.ts",
+    "../../components/stripboard/autoLayout5Macro.ts",
+    "../../components/stripboard/netCompleteness.ts",
+    "../../data/defaultComponents.ts"
+  ]
+}

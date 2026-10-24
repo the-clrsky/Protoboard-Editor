@@ -1,0 +1,465 @@
+import { BoardPosition, ComponentDef } from "@/types";
+import { MM_PER_HOLE, liesFlat, resolvePackage } from "./packageBodies";
+
+// Radius (in hole pitches) around a flexible component's body line whose
+// holes are blocked for pins and jumper endpoints.
+export const FLEXIBLE_CORRIDOR_RADIUS = 0.5;
+
+// Fat-body clearance between two flexible components: near the pins the part
+// is only a thin lead, so the body segment is shrunk at each end. Clearance
+// is a whole number of free board lines the part keeps next to its body,
+// against neighbours of every kind: 0 = may sit directly adjacent, 1 = one
+// free row/column between (the classic rule for resistors, and the
+// default). A pair shares the moat, so the requirement between two parts is
+// the larger of their two clearances, not the sum. End-to-end stacking
+// stays legal either way.
+const BODY_END_SHRINK = 0.5;
+const BODY_CONTACT_SEPARATION = 1;
+export const DEFAULT_CLEARANCE = 1;
+
+// Pin-to-pin span limits in hole pitches (Euclidean). The package decides:
+// an axial part needs the span its body lies flat in and has long leads to
+// stretch; a radial part (caps, LEDs) stands on short legs that only bend out
+// a little. 4 pitches covers 95 % of the caps and LEDs people placed by hand.
+// A part with no package keeps the limits its type always had.
+const AXIAL_SPAN = { min: 4, max: 10 };
+const COMPACT_SPAN = { min: 1, max: 6 };
+const RADIAL_SPAN = { min: 1, max: 4 };
+const AXIAL_MAX = 10;
+// Fuse: a cartridge on leads may be stretched well past its body; a radial one stands on
+// stiff legs two pitches apart and cannot stretch.
+const FUSE_MAX = 12;
+const RADIAL_FUSE_SPAN = { min: 2, max: 2 };
+const AXIAL_DEF_IDS = new Set(["def-resistor", "def-inductor", "def-diode", "def-zener"]);
+// What is commonly stood on one lead to save room
+const STANDING_DEF_IDS = new Set(["def-resistor", "def-diode", "def-zener"]);
+
+/** Shortest span, in whole pitches, at which an axial package lies flat. */
+export function flatSpan(def: ComponentDef): number | null {
+  const resolved = resolvePackage(def, def.part?.value, def.part?.package);
+  if (resolved?.kind !== "twoPin" || resolved.spec.shape !== "axial") return null;
+  for (let span = 1; span <= 40; span++) if (liesFlat(resolved.spec, span * MM_PER_HOLE)) return span;
+  return null;
+}
+
+export function spanLimits(def: ComponentDef): { min: number; max: number } {
+  if (def.spanOverride) return def.spanOverride;
+  const resolved = resolvePackage(def, def.part?.value, def.part?.package);
+  if (resolved?.kind !== "twoPin") return AXIAL_DEF_IDS.has(def.id) ? AXIAL_SPAN : COMPACT_SPAN;
+  // An axial package sets its own minimum: the span it needs to lie flat, or
+  // a single pitch where the project lets it stand on one lead.
+  const flat = flatSpan(def);
+  if (flat === null) return def.id === "def-fuse" ? RADIAL_FUSE_SPAN : RADIAL_SPAN;
+  const min = def.allowStanding && STANDING_DEF_IDS.has(def.id) ? 1 : flat;
+  return { min, max: Math.max(def.id === "def-fuse" ? FUSE_MAX : AXIAL_MAX, min) };
+}
+
+/**
+ * The clearance (free board lines next to the body) of this part, from the
+ * project's per-type config. Flexible parts default to one free line; rigid
+ * parts are always 0 — their footprint IS their true body (whoever defined
+ * the footprint sized it to the real plastic, overhang included), so two
+ * rigid parts may sit directly against one another.
+ */
+export function clearanceOf(def: ComponentDef): number {
+  return def.flexible ? def.clearance ?? DEFAULT_CLEARANCE : 0;
+}
+
+// Extra cost for placing a 2-pin part diagonally: roughly one strip cut
+// dearer than straight, so diagonals only appear when they save real work.
+export const DIAGONAL_PENALTY = 3;
+
+// A flexible body physically fills half a pitch each side of its centerline;
+// a rigid body likewise fills half a pitch past its footprint rect's outer
+// holes. Contact is therefore at centerline-to-rect distance 1 — clearance
+// counts its free lines on top of that.
+const FLEX_BODY_HALF_WIDTH = 0.5;
+
+interface Pt {
+  row: number;
+  col: number;
+}
+
+/** Distance from point p to the segment a-b, in hole pitches */
+export function pointSegmentDistance(p: Pt, a: Pt, b: Pt): number {
+  const dr = b.row - a.row;
+  const dc = b.col - a.col;
+  const lenSq = dr * dr + dc * dc;
+  let t = 0;
+  if (lenSq > 0) {
+    t = ((p.row - a.row) * dr + (p.col - a.col) * dc) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+  }
+  const nr = a.row + t * dr - p.row;
+  const nc = a.col + t * dc - p.col;
+  return Math.sqrt(nr * nr + nc * nc);
+}
+
+/** All holes inside the blocked corridor along a flexible body (pins included) */
+export function corridorHoles(p1: Pt, p2: Pt): BoardPosition[] {
+  const holes: BoardPosition[] = [];
+  const minRow = Math.min(p1.row, p2.row);
+  const maxRow = Math.max(p1.row, p2.row);
+  const minCol = Math.min(p1.col, p2.col);
+  const maxCol = Math.max(p1.col, p2.col);
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      if (pointSegmentDistance({ row: r, col: c }, p1, p2) <= FLEXIBLE_CORRIDOR_RADIUS + 1e-6) {
+        holes.push({ row: r, col: c });
+      }
+    }
+  }
+  return holes;
+}
+
+function orient(a: Pt, b: Pt, c: Pt): number {
+  return (b.col - a.col) * (c.row - a.row) - (b.row - a.row) * (c.col - a.col);
+}
+
+function onSegment(a: Pt, b: Pt, p: Pt): boolean {
+  return (
+    Math.min(a.row, b.row) - 1e-9 <= p.row && p.row <= Math.max(a.row, b.row) + 1e-9 &&
+    Math.min(a.col, b.col) - 1e-9 <= p.col && p.col <= Math.max(a.col, b.col) + 1e-9
+  );
+}
+
+/** Whether segments a1-a2 and b1-b2 intersect or touch */
+export function segmentsIntersect(a1: Pt, a2: Pt, b1: Pt, b2: Pt): boolean {
+  const o1 = orient(a1, a2, b1);
+  const o2 = orient(a1, a2, b2);
+  const o3 = orient(b1, b2, a1);
+  const o4 = orient(b1, b2, a2);
+  if (o1 * o2 < 0 && o3 * o4 < 0) return true;
+  if (Math.abs(o1) < 1e-9 && onSegment(a1, a2, b1)) return true;
+  if (Math.abs(o2) < 1e-9 && onSegment(a1, a2, b2)) return true;
+  if (Math.abs(o3) < 1e-9 && onSegment(b1, b2, a1)) return true;
+  if (Math.abs(o4) < 1e-9 && onSegment(b1, b2, a2)) return true;
+  return false;
+}
+
+/**
+ * Whether two segments lie on the same line and share more than a single
+ * point. Used to keep wires readable: crossing at an angle and touching at
+ * a shared endpoint are fine, running on top of each other is not.
+ */
+export function segmentsOverlapCollinear(a1: Pt, a2: Pt, b1: Pt, b2: Pt): boolean {
+  const dr = a2.row - a1.row;
+  const dc = a2.col - a1.col;
+  if (Math.abs(dr * (b2.col - b1.col) - dc * (b2.row - b1.row)) > 1e-9) return false; // not parallel
+  if (Math.abs(dr * (b1.col - a1.col) - dc * (b1.row - a1.row)) > 1e-9) return false; // parallel, different line
+  const along = (p: Pt) => p.row * dr + p.col * dc;
+  const aMin = Math.min(along(a1), along(a2));
+  const aMax = Math.max(along(a1), along(a2));
+  const bMin = Math.min(along(b1), along(b2));
+  const bMax = Math.max(along(b1), along(b2));
+  return Math.min(aMax, bMax) - Math.max(aMin, bMin) > 1e-9;
+}
+
+/** Minimum distance between segments a1-a2 and b1-b2, 0 if they intersect */
+function segmentSegmentDistance(a1: Pt, a2: Pt, b1: Pt, b2: Pt): number {
+  if (segmentsIntersect(a1, a2, b1, b2)) return 0;
+  return Math.min(
+    pointSegmentDistance(b1, a1, a2),
+    pointSegmentDistance(b2, a1, a2),
+    pointSegmentDistance(a1, b1, b2),
+    pointSegmentDistance(a2, b1, b2)
+  );
+}
+
+/** Segment shrunk by `amount` at each end; collapses to its midpoint if too short */
+function shrinkSegment(p1: Pt, p2: Pt, amount: number): [Pt, Pt] {
+  const dr = p2.row - p1.row;
+  const dc = p2.col - p1.col;
+  const len = Math.sqrt(dr * dr + dc * dc);
+  if (len <= 2 * amount) {
+    const mid = { row: (p1.row + p2.row) / 2, col: (p1.col + p2.col) / 2 };
+    return [mid, mid];
+  }
+  const ur = dr / len;
+  const uc = dc / len;
+  return [
+    { row: p1.row + ur * amount, col: p1.col + uc * amount },
+    { row: p2.row - ur * amount, col: p2.col - uc * amount },
+  ];
+}
+
+/** Fat-body clearance check between two flexible parts. `spacing` is the
+ * free lines the pair must keep — the LARGER of the two parts' clearances,
+ * since a shared moat serves both. The default reproduces the classic rule:
+ * parallel bodies two pitches apart, one free line between. */
+export function bodiesTooClose(a1: Pt, a2: Pt, b1: Pt, b2: Pt, spacing = DEFAULT_CLEARANCE): boolean {
+  const [sa1, sa2] = shrinkSegment(a1, a2, BODY_END_SHRINK);
+  const [sb1, sb2] = shrinkSegment(b1, b2, BODY_END_SHRINK);
+  return segmentSegmentDistance(sa1, sa2, sb1, sb2) < BODY_CONTACT_SEPARATION + spacing - 1e-6;
+}
+
+/** Closed-interval rectangle overlap, with optional slack per axis. */
+export function rectsOverlap(a: FootprintRect, b: FootprintRect, rowSlack = 0, colSlack = 0): boolean {
+  return (
+    a.minRow - rowSlack <= b.maxRow && a.maxRow + rowSlack >= b.minRow &&
+    a.minCol - colSlack <= b.maxCol && a.maxCol + colSlack >= b.minCol
+  );
+}
+
+export interface FootprintRect {
+  minRow: number;
+  minCol: number;
+  maxRow: number;
+  maxCol: number;
+}
+
+// ── Wire tidiness (soft costs, expressed as extra effective length) ──
+// Humans wire strip-to-strip: vertical jumpers, copper for the horizontal
+// travel. Any wire with horizontal travel pays every hole beyond
+// WIRE_OFFAXIS_FREE twice over, so a vertical wire — or a pair of vertical
+// hops through a relay strip — wins whenever one exists; one-hole diagonal
+// hops between adjacent strips stay near-free (grid parts need them).
+// Wires may still cross components (insulated), but each crossed component
+// costs WIRE_CROSS_EXTRA holes so a clean detour of similar length wins.
+// Crossing other wires stays free.
+export const WIRE_OFFAXIS_FREE = 1;
+export const WIRE_OFFAXIS_RATE = 2;
+export const WIRE_CROSS_EXTRA = 8;
+// Strict mode (hard zero-mess rule): every off-axis wire, one-hole
+// diagonals included, and every crossing is priced at WIRE_STRICT_MESS, so
+// any clean route beats any messy one and mess survives only where no
+// clean route exists at all.
+export const WIRE_STRICT_MESS = 1000;
+
+// ── Wire stacking (parallel runs sharing one channel) ──
+// Wires running collinearly on top of each other are physically fine
+// (insulation) and a standard human technique, but every added lane makes
+// the channel harder to solder and to read. Pricing escalates with the
+// stack depth the new wire lands in: the second wire in a channel is still
+// cheaper than a slant of a few holes, the third only wins over a real
+// detour, and a fourth is out — no channel may carry more than three
+// wires. The hard cap softens to WIRE_STACK_RESCUE per extra
+// lane only when a net cannot complete any other way (completeness beats
+// the cap, matching the shared-joint rescue).
+export const WIRE_STACK_PRICES = [0, 6, 15];
+export const WIRE_STACK_RESCUE = 1000;
+
+/**
+ * The deepest stack a wire from `from` to `to` would join: the maximum
+ * number of existing wires covering any single point of it collinearly.
+ * Pairwise overlap counts overstate a long wire that meets two disjoint
+ * stacks; the sweep below prices the true worst point.
+ */
+export function wireStackDepth(
+  from: Pt,
+  to: Pt,
+  wires: { from: Pt; to: Pt }[]
+): number {
+  const dr = to.row - from.row;
+  const dc = to.col - from.col;
+  const along = (p: Pt) => p.row * dr + p.col * dc;
+  const aMin = Math.min(along(from), along(to));
+  const aMax = Math.max(along(from), along(to));
+  // Overlap intervals along the wire's own line, then an endpoint sweep
+  const events: { x: number; d: number }[] = [];
+  for (const w of wires) {
+    if (!segmentsOverlapCollinear(from, to, w.from, w.to)) continue;
+    const bMin = Math.max(aMin, Math.min(along(w.from), along(w.to)));
+    const bMax = Math.min(aMax, Math.max(along(w.from), along(w.to)));
+    events.push({ x: bMin, d: 1 }, { x: bMax, d: -1 });
+  }
+  if (events.length === 0) return 0;
+  events.sort((a, b) => a.x - b.x || b.d - a.d);
+  let depth = 0;
+  let max = 0;
+  for (const e of events) {
+    depth += e.d;
+    if (depth > max) max = depth;
+  }
+  return max;
+}
+
+/**
+ * Extra effective length a wire pays for joining a stack of `depth`
+ * existing wires. Beyond the cap: Infinity normally (the candidate is
+ * rejected), the rescue rate when completing the net has no alternative.
+ */
+export function wireStackPenalty(depth: number, rescue = false): number {
+  if (depth < WIRE_STACK_PRICES.length) return WIRE_STACK_PRICES[depth];
+  return rescue ? WIRE_STACK_RESCUE * (depth - WIRE_STACK_PRICES.length + 1) : Infinity;
+}
+
+export interface WireObstacles {
+  rects: FootprintRect[];
+  // a flexible part: its leads from p1 to p2 and, where the package is known,
+  // the real body, which is usually wider than that line
+  bodies: { p1: Pt; p2: Pt; core?: { a: Pt; b: Pt; r: number } }[];
+}
+
+/** Whether a wire runs over a flexible part: across its leads or under its body. */
+export function wireCrossesBody(from: Pt, to: Pt, body: WireObstacles["bodies"][number]): boolean {
+  if (segmentsIntersect(from, to, body.p1, body.p2)) return true;
+  const core = body.core;
+  return !!core && segmentSegmentDistance(from, to, core.a, core.b) < core.r - 0.05;
+}
+
+/** Whether the segment p1-p2 touches the (unexpanded) rectangle */
+export function segmentIntersectsRect(p1: Pt, p2: Pt, rect: FootprintRect): boolean {
+  const inside = (p: Pt) =>
+    p.row >= rect.minRow && p.row <= rect.maxRow && p.col >= rect.minCol && p.col <= rect.maxCol;
+  if (inside(p1) || inside(p2)) return true;
+  const a = { row: rect.minRow, col: rect.minCol };
+  const b = { row: rect.minRow, col: rect.maxCol };
+  const c = { row: rect.maxRow, col: rect.maxCol };
+  const d = { row: rect.maxRow, col: rect.minCol };
+  return (
+    segmentsIntersect(p1, p2, a, b) ||
+    segmentsIntersect(p1, p2, b, c) ||
+    segmentsIntersect(p1, p2, c, d) ||
+    segmentsIntersect(p1, p2, d, a)
+  );
+}
+
+/** Extra effective length (holes) a wire pays for being messy */
+export function wireExtraLength(from: Pt, to: Pt, obstacles: WireObstacles): number {
+  const dr = Math.abs(to.row - from.row);
+  const dc = Math.abs(to.col - from.col);
+  let extra = 0;
+  if (dc > 1e-9) {
+    extra += WIRE_OFFAXIS_RATE * Math.max(0, Math.hypot(dr, dc) - WIRE_OFFAXIS_FREE);
+  }
+  // Bounding-box prefilter: this runs for thousands of candidate pairs per
+  // routing pass, and almost every obstacle is nowhere near the wire.
+  const minR = Math.min(from.row, to.row);
+  const maxR = Math.max(from.row, to.row);
+  const minC = Math.min(from.col, to.col);
+  const maxC = Math.max(from.col, to.col);
+  for (const rect of obstacles.rects) {
+    if (rect.maxRow < minR || rect.minRow > maxR || rect.maxCol < minC || rect.minCol > maxC) continue;
+    if (segmentIntersectsRect(from, to, rect)) extra += WIRE_CROSS_EXTRA;
+  }
+  for (const body of obstacles.bodies) {
+    const pad = body.core?.r ?? 0;
+    if (Math.max(body.p1.row, body.p2.row) + pad < minR || Math.min(body.p1.row, body.p2.row) - pad > maxR) continue;
+    if (Math.max(body.p1.col, body.p2.col) + pad < minC || Math.min(body.p1.col, body.p2.col) - pad > maxC) continue;
+    if (wireCrossesBody(from, to, body)) extra += WIRE_CROSS_EXTRA;
+  }
+  return extra;
+}
+
+/**
+ * The obstacles the wire router (v5wasm/route.c) routes around, and whether
+ * it routes strictly: then any slant or crossing costs WIRE_STRICT_MESS.
+ * extraLength is the router's price of one wire beyond its length.
+ */
+export class WireObstacleIndex {
+  constructor(readonly obstacles: WireObstacles, readonly strict = false) {}
+
+  extraLength(from: Pt, to: Pt): number {
+    if (!this.strict) return wireExtraLength(from, to, this.obstacles);
+    let extra = from.col !== to.col ? WIRE_STRICT_MESS : 0;
+    for (const rect of this.obstacles.rects) if (segmentIntersectsRect(from, to, rect)) extra += WIRE_STRICT_MESS;
+    for (const body of this.obstacles.bodies) if (wireCrossesBody(from, to, body)) extra += WIRE_STRICT_MESS;
+    return extra;
+  }
+}
+
+/**
+ * Whether a flexible part's body (pin-to-pin segment minus the thin lead
+ * ends) enters a rigid component's footprint rectangle or the free lines
+ * its clearance demands next to it. `spacing` is the flexible part's own
+ * clearance (rigid parts demand none). The rect is credited half a pitch —
+ * plastic reaches at most to its outer cells' edges — so at the default a
+ * body running parallel one column beside the footprint is exactly too
+ * close (no free column), two columns away keeps its one free column, and
+ * a part standing END-ON with its lead in the neighbouring column stays
+ * legal, mirroring flex-to-flex end-to-end stacking. This is a true
+ * geometric test: hole-based corridor checks miss diagonals that thread
+ * between grid points.
+ */
+export function bodyIntersectsRect(p1: Pt, p2: Pt, rect: FootprintRect, spacing = DEFAULT_CLEARANCE): boolean {
+  const [s1, s2] = shrinkSegment(p1, p2, BODY_END_SHRINK);
+  const clearance = spacing + FLEX_BODY_HALF_WIDTH - 1e-6;
+  const minRow = rect.minRow - clearance;
+  const maxRow = rect.maxRow + clearance;
+  const minCol = rect.minCol - clearance;
+  const maxCol = rect.maxCol + clearance;
+  const inside = (p: Pt) =>
+    p.row >= minRow && p.row <= maxRow && p.col >= minCol && p.col <= maxCol;
+  if (inside(s1) || inside(s2)) return true;
+  const a = { row: minRow, col: minCol };
+  const b = { row: minRow, col: maxCol };
+  const c = { row: maxRow, col: maxCol };
+  const d = { row: maxRow, col: minCol };
+  return (
+    segmentsIntersect(s1, s2, a, b) ||
+    segmentsIntersect(s1, s2, b, c) ||
+    segmentsIntersect(s1, s2, c, d) ||
+    segmentsIntersect(s1, s2, d, a)
+  );
+}
+
+// ── True-size bodies ──
+// A part's body as the package really is, in hole pitches: a capsule (a
+// segment with a radius, a circle when the segment is a point) for a flexible
+// part, a rectangle for a rigid one. Clearance is then only the extra air the
+// user asks for on top, because the body's own width is already in the shape.
+
+export interface Capsule {
+  a: Pt;
+  b: Pt;
+  r: number;
+}
+
+/**
+ * Air a clearance setting demands between two bodies. A clearance counts whole
+ * free board lines, and a line is free once the bodies either side are half a
+ * pitch clear of it between them, hence the half.
+ */
+export function clearanceAir(lines: number): number {
+  return lines > 0 ? lines - 0.5 : 0;
+}
+
+export function capsulesClash(A: Capsule, B: Capsule, lines = 0): boolean {
+  return segmentSegmentDistance(A.a, A.b, B.a, B.b) < A.r + B.r + clearanceAir(lines) - 1e-6;
+}
+
+/**
+ * Capsule against a rigid body. The rectangle is in hole-centre terms, as
+ * every footprint rectangle is: the plastic reaches half a pitch past it, so
+ * an ordinary footprint is its own integer cell rectangle and only a package
+ * that really overhangs has fractional edges.
+ */
+export function capsuleClashesRect(A: Capsule, rect: FootprintRect, lines = 0): boolean {
+  const reach = A.r + clearanceAir(lines) - 1e-6;
+  const minRow = rect.minRow - 0.5;
+  const maxRow = rect.maxRow + 0.5;
+  const minCol = rect.minCol - 0.5;
+  const maxCol = rect.maxCol + 0.5;
+  const inside = (p: Pt) => p.row > minRow && p.row < maxRow && p.col > minCol && p.col < maxCol;
+  if (inside(A.a) || inside(A.b)) return true;
+  const c1 = { row: minRow, col: minCol };
+  const c2 = { row: minRow, col: maxCol };
+  const c3 = { row: maxRow, col: maxCol };
+  const c4 = { row: maxRow, col: minCol };
+  return (
+    segmentSegmentDistance(A.a, A.b, c1, c2) < reach ||
+    segmentSegmentDistance(A.a, A.b, c2, c3) < reach ||
+    segmentSegmentDistance(A.a, A.b, c3, c4) < reach ||
+    segmentSegmentDistance(A.a, A.b, c4, c1) < reach
+  );
+}
+
+/** Two rigid bodies, in the same hole-centre terms. Touching is allowed. */
+export function bodyRectsClash(a: FootprintRect, b: FootprintRect, lines = 0): boolean {
+  const air = clearanceAir(lines) - 1e-6;
+  return (
+    a.minRow - air < b.maxRow + 1 && b.minRow - air < a.maxRow + 1 &&
+    a.minCol - air < b.maxCol + 1 && b.minCol - air < a.maxCol + 1
+  );
+}
+
+/** The whole holes a rigid body lies over, as an integer rectangle. */
+export function coveredHoles(rect: FootprintRect): FootprintRect {
+  return {
+    minRow: Math.ceil(rect.minRow - 0.5 + 1e-6),
+    maxRow: Math.floor(rect.maxRow + 0.5 - 1e-6),
+    minCol: Math.ceil(rect.minCol - 0.5 + 1e-6),
+    maxCol: Math.floor(rect.maxCol + 0.5 - 1e-6),
+  };
+}

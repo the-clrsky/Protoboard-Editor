@@ -1,0 +1,213 @@
+import { Board, Component, ComponentDef, Net, NetAssignment } from "@/types";
+import { CompletionPlan, deriveCompletion } from "../autoFinish";
+import { resolveComponentDef } from "@/utils/resolveComponentDef";
+import { getFlexiblePinPositions } from "../boardLayout";
+import { WireObstacles, segmentIntersectsRect, wireCrossesBody, wireStackDepth } from "../flexGeometry";
+import { flexWireObstacle, rigidBody } from "../partGeometry";
+import { AREA_WEIGHT, avoidableBetweenCuts } from "./tidyScore";
+import { DimLimits } from "./tileModel";
+import { BoardPricer } from "./boardPrice";
+
+// A routed board candidate: virtual component set, board size, and the
+// completion plan (cuts + wires) the router derived for it.
+export interface Candidate {
+  virtual: Component[];
+  rows: number;
+  cols: number;
+  movedIds: Set<string>;
+  plan: CompletionPlan;
+  bad: number;
+  // strict mode: off-axis wires plus crossings (0 otherwise)
+  mess: number;
+}
+
+/**
+ * Routes candidates and keeps the best one seen so far. Every phase of the
+ * stage-2 search (ladder, polish, channel insertions, slant repairs) offers
+ * its layouts through route(); a candidate is adopted only when it beats the
+ * current holder on (bad, cost), so no phase can make the result worse.
+ *
+ * Among clean candidates, a cell of board, a hole of wire, and a hole of
+ * wire mess (length over parts / off axis) weigh the same — density must
+ * not buy ugly OR long wires. Humans spend board area freely to keep link
+ * wires short; without the length term the densest candidate always won
+ * and tidier floorplans were discarded.
+ * Locked dimensions are paid in full either way.
+ */
+export class Chooser {
+  chosen: Candidate | null = null;
+
+  // Beam-search experiment: while active (through the ladder), every routed
+  // candidate with a distinct placement is kept, so refinement can be run
+  // from the k-th best construction instead of only the best. Frozen before
+  // the post-ladder phases so local-move proposals don't pollute the pool.
+  private pool: { cand: Candidate; cost: number; label?: string }[] = [];
+  private poolSigs = new Set<string>();
+  private poolActive = true;
+
+  constructor(
+    private board: Board,
+    private componentDefs: ComponentDef[],
+    private nets: Net[],
+    private netAssignments: NetAssignment[],
+    // Pin-joint sharing is a locked-layout rescue; see deriveCompletion
+    private allowSharedJoints: boolean,
+    private limits: DimLimits,
+    // Drilled-cuts-only preference: each cut the drill upgrade could not
+    // absorb is priced like a slanted wire (one board line), so layouts
+    // that leave room to drill win without making between-cuts a defect.
+    private drilledCutsOnly = false,
+    // Hard zero-mess rule: candidates rank on (bad, mess, cost) and the
+    // router prices mess as a last resort, so a line that removes an
+    // off-axis or crossing wire is adopted whatever it costs in area.
+    private strict = false,
+    // No wire may run on top of another: stacked wires count as mess
+    // (strict ranking) and the router prices them as a last resort
+    private noWireStacking = false,
+    // The one objective (v5): candidates rank by the same price the anneal
+    // scored its skeletons with, so the finish keeps only what the anneal
+    // would have kept. Without it, the ladder's own cost below.
+    private pricer?: BoardPricer
+  ) {}
+
+  get forbidsStacking(): boolean {
+    return this.noWireStacking;
+  }
+
+  // a wire over a part: the package's true body and a flexible part's real
+  // body, the same geometry the finish score and the repair finish judge by
+  private messOf(virtual: Component[], plan: CompletionPlan): number {
+    const obstacles: WireObstacles = { rects: [], bodies: [] };
+    for (const c of virtual) {
+      if (!c.boardPos || c.boardExcluded) continue;
+      const def = resolveComponentDef(c, this.componentDefs);
+      if (!def) continue;
+      if (def.flexible) {
+        const [p1, p2] = getFlexiblePinPositions(c, def);
+        if (p1 && p2) obstacles.bodies.push(flexWireObstacle(def, p1, p2));
+      } else obstacles.rects.push(rigidBody(def, c.boardPos, c.rotation));
+    }
+    let mess = 0;
+    plan.wires.forEach((w, i) => {
+      if (w.from.col !== w.to.col) mess++;
+      for (const r of obstacles.rects) if (segmentIntersectsRect(w.from, w.to, r)) mess++;
+      for (const b of obstacles.bodies) if (wireCrossesBody(w.from, w.to, b)) mess++;
+      if (this.noWireStacking && wireStackDepth(w.from, w.to, plan.wires.slice(0, i)) > 0) mess++;
+    });
+    return mess;
+  }
+
+  // Ribbon boards read badly even at equal area: beyond maxDim = 2·minDim,
+  // each extra length unit is priced like a row of cells. A user-locked
+  // dimension is the user's own shape choice and exempts the board.
+  private aspectOver(rows: number, cols: number): number {
+    if (this.limits.maxRows !== undefined || this.limits.maxCols !== undefined) return 0;
+    const mx = Math.max(rows, cols);
+    const mn = Math.min(rows, cols);
+    return Math.max(0, mx - 2 * mn) * mn;
+  }
+
+  private wireLenOf(p: CompletionPlan): number {
+    return p.wires.reduce((s, w) => s + Math.hypot(w.from.row - w.to.row, w.from.col - w.to.col), 0);
+  }
+
+  // A non-vertical wire is worth a whole board line: that is the exchange
+  // rate users reveal when they hand-fix layouts (one inserted blank column
+  // to straighten a single wire), and it is what lets a channel insertion
+  // or repair move pay for itself in this cost.
+  private slantsOf(p: CompletionPlan): number {
+    return p.wires.reduce((n, w) => n + (w.from.col !== w.to.col ? 1 : 0), 0);
+  }
+
+  private cost(c: Candidate): number {
+    if (this.pricer) return this.pricer.price(c.virtual, c.rows, c.cols, c.plan.cuts, c.plan.wires);
+    const betweenCuts = this.drilledCutsOnly
+      ? avoidableBetweenCuts(c.plan.cuts, c.virtual, this.componentDefs)
+      : 0;
+    return (
+      AREA_WEIGHT *
+        (this.limits.maxRows ? Math.max(this.limits.maxRows, c.rows) : c.rows) *
+        (this.limits.maxCols ? Math.max(this.limits.maxCols, c.cols) : c.cols) +
+      c.plan.wireMess + this.wireLenOf(c.plan) + this.aspectOver(c.rows, c.cols) +
+      Math.max(c.rows, c.cols) * (this.slantsOf(c.plan) + betweenCuts)
+    );
+  }
+
+  private signatureOf(c: Candidate): string {
+    const parts = c.virtual
+      .filter((v) => v.boardPos)
+      .map(
+        (v) =>
+          `${v.id}:${v.boardPos!.row},${v.boardPos!.col},${v.rotation ?? 0},${
+            v.flexibleEndPos ? `${v.flexibleEndPos.row},${v.flexibleEndPos.col}` : ""
+          }`
+      )
+      .sort()
+      .join("|");
+    return `${c.rows}x${c.cols}|${parts}`;
+  }
+
+  resetPool() {
+    this.pool = [];
+    this.poolSigs.clear();
+    this.poolActive = true;
+  }
+
+  /** Stop collecting and rank the pool by (bad, cost); stable, so the
+   * incumbent (first seen among ties) stays in front. */
+  freezePool() {
+    this.poolActive = false;
+    this.pool.sort((a, b) => a.cand.bad - b.cand.bad || a.cost - b.cost);
+  }
+
+  poolEntry(i: number): Candidate {
+    return this.pool[Math.max(0, Math.min(i, this.pool.length - 1))].cand;
+  }
+
+  poolSummary(): { bad: number; cost: number; rows: number; cols: number; label?: string }[] {
+    return this.pool.map((e) => ({
+      bad: e.cand.bad,
+      cost: Math.round(e.cost * 10) / 10,
+      rows: e.cand.rows,
+      cols: e.cand.cols,
+      ...(e.label ? { label: e.label } : {}),
+    }));
+  }
+
+  /** Beam search: make the given pool candidate the incumbent. */
+  install(c: Candidate) {
+    this.chosen = c;
+  }
+
+  route(virtual: Component[], rows: number, cols: number, movedIds: Set<string>, repair = false, label?: string): Candidate {
+    const tryBoard: Board = { ...this.board, rows, cols, cuts: [], wires: [] };
+    const plan = deriveCompletion(tryBoard, virtual, this.componentDefs, this.nets, this.netAssignments, {
+      allowSharedJoints: this.allowSharedJoints,
+      ...(repair ? { repairSlants: true } : {}),
+      ...(this.drilledCutsOnly ? { drilledCutsOnly: true } : {}),
+      ...(this.strict ? { strictWires: true } : {}),
+      ...(this.noWireStacking ? { noWireStacking: true } : {}),
+    });
+    const overCap =
+      (this.limits.maxRows ? Math.max(0, rows - this.limits.maxRows) : 0) +
+      (this.limits.maxCols ? Math.max(0, cols - this.limits.maxCols) : 0);
+    const bad = plan.unresolvedConflicts * 100 + 40 * overCap + plan.starvedNetIds.length;
+    const mess = this.strict ? this.messOf(virtual, plan) : 0;
+    const cand: Candidate = { virtual, rows, cols, movedIds, plan, bad, mess };
+    if (this.poolActive) {
+      const sig = this.signatureOf(cand);
+      if (!this.poolSigs.has(sig)) {
+        this.poolSigs.add(sig);
+        this.pool.push({ cand, cost: this.cost(cand), label });
+      }
+    }
+    if (
+      !this.chosen ||
+      bad < this.chosen.bad ||
+      (bad === this.chosen.bad && (mess < this.chosen.mess || (mess === this.chosen.mess && this.cost(cand) < this.cost(this.chosen))))
+    ) {
+      this.chosen = cand;
+    }
+    return cand;
+  }
+}

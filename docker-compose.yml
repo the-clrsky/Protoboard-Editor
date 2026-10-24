@@ -1,0 +1,35 @@
+name: protoboard-editor
+
+services:
+  django:
+    build:
+      context: ./src/backend
+    env_file: /etc/protoboard-editor/.env
+    volumes:
+      - /etc/protoboard-editor/data:/etc/protoboard-editor/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  nextjs:
+    build:
+      context: ./src/frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:16005:80"
+    volumes:
+      - ./src/nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      - ADMIN_ALLOWED_IP=${ADMIN_ALLOWED_IP:-127.0.0.1}
+      - BACKUP_ALLOWED_IP=${BACKUP_ALLOWED_IP:-127.0.0.1}
+    depends_on:
+      - django
+      - nextjs
+    restart: unless-stopped

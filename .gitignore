@@ -1,0 +1,12 @@
+venv/
+.env
+db.sqlite3
+__pycache__/
+*.pyc
+node_modules/
+.next/
+*.sqlite3
+auto-layouter-data/
+CLAUDE.md
+.claude/
+tools/
