@@ -3,8 +3,8 @@
 A layout editor for prototyping boards, with a built-in schematic editor. Draw a schematic, place the parts on a virtual board, and the copper takes the colour of your nets with live conflict detection and a list of what still needs to be connected. When the layout is done, print a true-scale template and build it.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="src/frontend/public/demo-circuit-dark.png">
-  <img alt="Protoboard Editor with schematic and board layout side by side" src="src/frontend/public/demo-circuit.png">
+  <source media="(prefers-color-scheme: dark)" srcset="src/frontend/public/demo-dotboard-dark.png">
+  <img alt="Protoboard Editor with schematic and board layout side by side" src="src/frontend/public/demo-dotboard.png">
 </picture>
 
 ## Use it online
