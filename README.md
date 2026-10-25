@@ -7,6 +7,16 @@ A layout editor for prototyping boards, with a built-in schematic editor. Draw a
   <img alt="Protoboard Editor with schematic and board layout side by side" src="src/frontend/public/demo-circuit.png">
 </picture>
 
+## Use it online
+
+**https://sadmanbishal.com/Protoboard-Editor/** runs the editor in your browser, with no account and no install. This is the browser-only version:
+
+- Your projects stay in that browser on that device (IndexedDB). Clearing the browser data deletes them. Use **Export** to keep a backup file, and **Import** to open it again, also on another device.
+- It has no accounts, no share links and no parts library. Custom parts are kept inside each project.
+- It cannot open project files from much older versions of the editor. Open such a file once in a self-hosted copy and export it again.
+
+For accounts, share links and a parts library, run your own copy (see below).
+
 ## Board types
 
 | Type | Copper | Auto-layout |
@@ -24,9 +34,27 @@ A layout editor for prototyping boards, with a built-in schematic editor. Draw a
 
 The library has the common passives, semiconductors, connectors and ICs, plus Raspberry Pi Pico, ESP32 and Arduino Nano boards, an LM2596 buck module, a BLX-A 5 x 20 mm fuse holder and a DPST rocker switch.
 
-## Run it on Windows
+## Self-hosting
 
-Needs [Node.js](https://nodejs.org) 20 or newer and [Python](https://www.python.org) 3.12 or newer.
+The self-hosted version has everything: accounts, edit and view-only share links, a personal parts library, and projects stored on your server. It is a Next.js frontend and a Django backend with SQLite.
+
+| | Browser-only (online) | Self-hosted |
+|---|---|---|
+| Editor, auto-layout, print, KiCad netlist export | yes | yes |
+| Projects are kept | in the browser | on the server |
+| Accounts, share links, parts library | no | yes |
+
+Three ways to run it:
+
+- **Windows:** for one PC, or for development.
+- **Docker:** for a server on your network.
+- **Proxmox:** Docker in an LXC container.
+
+Keep a self-hosted copy on your own network. To put it on the internet, add HTTPS in front of it and set `SESSION_COOKIE_SECURE=true`.
+
+### Windows
+
+Needs [Node.js](https://nodejs.org) 20.9 or newer and [Python](https://www.python.org) 3.12 or newer.
 
 One time:
 
@@ -54,6 +82,82 @@ cd src\backend
 venv\Scripts\python manage.py create_dev_admin --username admin --password <your password>
 ```
 
+### Docker
+
+Needs a Linux host with [Docker Engine](https://docs.docker.com/engine/install/) and the Compose plugin, and about 4 GB of RAM for the first build. Three containers start: the frontend, the backend and nginx, which serves both on one port.
+
+1. Get the code:
+
+   ```sh
+   git clone https://github.com/the-clrsky/Protoboard-Editor.git /opt/protoboard-editor
+   cd /opt/protoboard-editor
+   ```
+
+2. Decide the address that people will open, for example `http://192.168.1.50:8080` (the host's IP address or name, and a free port). Write it in a file `.env` next to `docker-compose.yml`:
+
+   ```sh
+   printf 'PUBLIC_URL=http://192.168.1.50:8080\nEDITOR_PORT=8080\n' > .env
+   ```
+
+   The address is built into the frontend. If you change it later, build again (step 5).
+
+3. Make the backend settings. Make two random values with `openssl rand -base64 48`, and use them for `DJANGO_SECRET_KEY` and `BACKUP_TOKEN`:
+
+   ```sh
+   sudo mkdir -p /etc/protoboard-editor/data
+   sudo nano /etc/protoboard-editor/.env
+   ```
+
+   ```ini
+   DJANGO_SECRET_KEY=<random value>
+   DJANGO_DEBUG=false
+   # host names and IP addresses in PUBLIC_URL, comma-separated
+   DJANGO_ALLOWED_HOSTS=192.168.1.50
+   # exactly PUBLIC_URL
+   CORS_ALLOWED_ORIGINS=http://192.168.1.50:8080
+   SQLITE_DB_PATH=/etc/protoboard-editor/data/db.sqlite3
+   # true only behind HTTPS
+   SESSION_COOKIE_SECURE=false
+   BACKUP_TOKEN=<another random value>
+   # optional, for password-reset emails through Resend
+   RESEND_API_KEY=
+   ```
+
+4. Start it:
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+   The first build takes some minutes. Then open `PUBLIC_URL` and register an account.
+
+5. Update to a new version:
+
+   ```sh
+   git pull
+   docker compose up -d --build
+   ```
+
+   The backend brings stored projects up to the current file format when it starts.
+
+**Backup:** all data is in `/etc/protoboard-editor/data/db.sqlite3`. Stop the backend with `docker compose stop django`, copy the file, then run `docker compose start django`.
+
+### Proxmox
+
+Run the Docker setup in an LXC container:
+
+1. In Proxmox, create a container from a Debian 12 or 13 template. Use 2 cores, 4 GB of memory and a 16 GB disk, and give it a fixed IP address.
+2. Docker in an unprivileged container needs two features. In the container's **Options > Features**, turn on **nesting** and **keyctl**. Or run this on the Proxmox host:
+
+   ```sh
+   pct set <container id> --features nesting=1,keyctl=1
+   ```
+
+3. Start the container, and open its console.
+4. Install `git`, then Docker Engine as described for [Debian](https://docs.docker.com/engine/install/debian/).
+5. Do the steps in [Docker](#docker), with the container's IP address in `PUBLIC_URL`.
+6. Turn on **Start at boot** in the container's options. The containers restart on their own (`restart: unless-stopped`).
+
 ## Tests
 
 ```bat
@@ -66,6 +170,8 @@ npm run test:solver
 
 - **Frontend:** Next.js
 - **Backend:** Python Django, SQLite
+
+One codebase gives two builds. With `NEXT_PUBLIC_API_URL` set, `next build` makes the full, self-hosted frontend. Without it, it makes the browser-only static export in `src/frontend/out` (set `NEXT_PUBLIC_BASE_PATH` and `NEXT_PUBLIC_SITE_URL` for a sub-path). GitHub Actions builds and publishes the browser-only version from `main` (`.github/workflows/pages.yml`).
 
 ## Feedback
 

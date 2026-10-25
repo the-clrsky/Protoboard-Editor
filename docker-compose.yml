@@ -1,5 +1,9 @@
 name: protoboard-editor
 
+# Self-hosting: see "Self-hosting" in README.md.
+# Settings: a .env file next to this file (PUBLIC_URL, EDITOR_PORT) and
+# /etc/protoboard-editor/.env for Django.
+
 services:
   django:
     build:
@@ -15,7 +19,10 @@ services:
     build:
       context: ./src/frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api
+        # The address people open in the browser, e.g. http://192.168.1.50:8080.
+        # Built into the frontend, so rebuild after a change.
+        NEXT_PUBLIC_API_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env}/api
+        NEXT_PUBLIC_SITE_URL: ${PUBLIC_URL}
     expose:
       - "3000"
     restart: unless-stopped
@@ -23,7 +30,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "127.0.0.1:16005:80"
+      - "${EDITOR_BIND:-0.0.0.0}:${EDITOR_PORT:-8080}:80"
     volumes:
       - ./src/nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     environment:
