@@ -28,15 +28,16 @@ export default function SiteHeader({
           <a href={SITE_URL} className={`font-serif shrink-0 ${LINK}`}>
             Sadman R. Bishal
           </a>
-          <span className="mx-2 text-neutral-300 dark:text-neutral-600">/</span>
-          <Link
-            href="/"
-            className="truncate font-serif font-medium text-[#113768] dark:text-[#5b9bd5] hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors"
-          >
-            Protoboard Editor
-          </Link>
+          {/* The editor home shows only the author name; sub-pages add a way back. */}
           {breadcrumb && (
             <>
+              <span className="mx-2 text-neutral-300 dark:text-neutral-600">/</span>
+              <Link
+                href="/"
+                className="truncate font-serif font-medium text-[#113768] dark:text-[#5b9bd5] hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors"
+              >
+                Protoboard Editor
+              </Link>
               <span className="mx-2 max-sm:hidden text-neutral-300 dark:text-neutral-600">/</span>
               <span className="truncate max-sm:hidden text-sm text-neutral-500 dark:text-neutral-400">{breadcrumb}</span>
             </>
