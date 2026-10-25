@@ -228,15 +228,22 @@ export default function HomeClient({
         <div className="flex flex-wrap items-center gap-3 mb-4 font-site text-[0.95rem] font-medium">
           <button
             onClick={() => handleNewProject()}
-            className="inline-flex items-center justify-center h-11 px-6 rounded-md border border-[#113768] bg-[#113768] text-white hover:bg-[#1a4a8a] hover:border-[#1a4a8a] transition-colors"
+            className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md border border-[#113768] bg-[#113768] text-white hover:bg-[#1a4a8a] hover:border-[#1a4a8a] transition-colors"
           >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
             New project
           </button>
           <Link
             href="/guide"
             onClick={() => track("content-cta", { from: "home", to: "guide" })}
-            className="inline-flex items-center justify-center h-11 px-6 rounded-md border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:border-[#113768] dark:hover:border-[#5b9bd5] hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors"
+            className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:border-[#113768] dark:hover:border-[#5b9bd5] hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors"
           >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z" />
+              <path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z" />
+            </svg>
             Short guide
           </Link>
         </div>
@@ -263,7 +270,7 @@ export default function HomeClient({
           <h2 className="font-site-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-1">start on a board</h2>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Each card opens a new project on that board. You can change the kind later in the editor.</p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {BOARD_TYPES.map((b) => (
+            {[...BOARD_TYPES].sort((a, b) => Number(b.id === "dot") - Number(a.id === "dot")).map((b) => (
               <button
                 key={b.id}
                 onClick={() => handleNewProject(b.id)}
