@@ -12,7 +12,10 @@ export function withBase(path: string): string {
   return `${BASE_PATH}${path}`;
 }
 
-const REPO_URL = "https://github.com/the-clrsky/Protoboard-Editor";
+// The author's personal site (Astro, separate repo). The editor header and footer link back to it.
+export const SITE_URL = "https://sadmanbishal.com";
+
+const REPO_URL ="https://github.com/the-clrsky/Protoboard-Editor";
 
 // The feedback page needs the backend; the static build sends people to GitHub Issues.
 export const FEEDBACK_HREF = STATIC ? `${REPO_URL}/issues` : "/feedback";

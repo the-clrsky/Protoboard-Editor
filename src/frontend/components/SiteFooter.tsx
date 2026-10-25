@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FEEDBACK_HREF } from "@/lib/mode";
+import { FEEDBACK_HREF, SITE_URL } from "@/lib/mode";
 
 export default function SiteFooter() {
   return (
@@ -11,7 +11,8 @@ export default function SiteFooter() {
           {" "}for stripboards, dot boards and other prototyping boards
         </span>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <Link href={FEEDBACK_HREF} className="text-neutral-500 dark:text-neutral-400 hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors">Feedback</Link>
+          <a href={SITE_URL} className="text-neutral-500 dark:text-neutral-400 hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors">sadmanbishal.com</a>
+          <Link href={FEEDBACK_HREF}className="text-neutral-500 dark:text-neutral-400 hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors">Feedback</Link>
           <a href="https://github.com/the-clrsky/Protoboard-Editor" target="_blank" rel="noopener noreferrer" className="text-neutral-500 dark:text-neutral-400 hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors">GitHub</a>
           <Link href="/privacy" className="text-neutral-500 dark:text-neutral-400 hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors">Privacy Policy</Link>
         </div>
