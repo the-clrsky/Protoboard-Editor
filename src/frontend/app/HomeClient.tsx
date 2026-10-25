@@ -225,17 +225,17 @@ export default function HomeClient({
         </div>
 
         {/* Actions */}
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mb-4 font-site text-base">
+        <div className="flex flex-wrap items-center gap-3 mb-4 font-site text-[0.95rem] font-medium">
           <button
             onClick={() => handleNewProject()}
-            className="text-[#113768] dark:text-[#5b9bd5] border-b border-current pb-0.5 hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors"
+            className="inline-flex items-center justify-center h-11 px-6 rounded-md border border-[#113768] bg-[#113768] text-white hover:bg-[#1a4a8a] hover:border-[#1a4a8a] transition-colors"
           >
-            New project →
+            New project
           </button>
           <Link
             href="/guide"
             onClick={() => track("content-cta", { from: "home", to: "guide" })}
-            className="text-neutral-500 dark:text-neutral-400 border-b border-neutral-300 dark:border-neutral-700 pb-0.5 hover:text-[#113768] dark:hover:text-[#5b9bd5] hover:border-current transition-colors"
+            className="inline-flex items-center justify-center h-11 px-6 rounded-md border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:border-[#113768] dark:hover:border-[#5b9bd5] hover:text-[#113768] dark:hover:text-[#5b9bd5] transition-colors"
           >
             Short guide
           </Link>
