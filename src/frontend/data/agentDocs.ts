@@ -10,38 +10,59 @@ export const SITE = SITE_URL;
 
 export const INDEX_MD = `# Protoboard Editor
 
-> Free online editor for designing circuits on stripboard (Veroboard). Draw a
-> schematic, place the parts on a virtual board, and let the automatic layouter
-> work out the placement, board size, strip cuts and link wires. This is the
-> markdown version of ${SITE}.
+> Free, open-source layout editor for prototyping boards: stripboard, dot board
+> (perfboard), tripad board and breadboard PCB. Draw a schematic, place the
+> parts on a virtual board, or let the automatic layouter place them and lay
+> the strip cuts or solder runs. This is the markdown version of ${SITE}.
 
-Draw a schematic, place the parts onto a virtual board. The copper strips take the colour of the nets, with live conflict detection and an overview of what still needs to be connected. Or hand the circuit to the auto-layout router: it places every part, picks a board size, and works out the strip cuts and link wires for you.
+Plan a circuit on the board you will really solder: stripboard, dot board, tripad board or a breadboard-style PCB. Draw the schematic once. Then place the parts by hand, with every net in its own colour, or let auto-layout place them and lay the cuts or solder runs for you.
 
-No account is required, nothing is installed, and the editor is free.
+The editor is free and open source (GPL-3.0). Use it in the browser or host it on your own server. There are no ads.
 
-## How it works, in four steps
+## Board kinds
 
-1. **Draw the schematic.** Place components from the symbol library or create your own, and wire up the pins to define your nets.
-2. **Drop onto the board.** Drag parts onto the stripboard. Strips colour-code to your nets automatically.
-3. **Resolve conflicts.** Add cuts and link wires. Anything wrong lights up red the moment it happens.
-4. **Print and build.** Print a 1:1 template, lay it on the board, and push parts straight through the paper.
+Each kind opens a new project from the home page; the editor can change it later.
+
+- **Stripboard:** copper strips along every row. Cut them where two nets must part. Auto-layout works here.
+- **Dot board:** a lone pad per hole. Solder runs join the pads you choose. Auto-layout works here.
+- **Tripad board:** pads joined in threes along each row. Bridge the groups with solder. Hand layout.
+- **Breadboard PCB:** the breadboard pattern in copper: power rails and joined columns. Hand layout.
+
+The home page shows a demo: a 555 LED flasher that auto-layout put on a 7 x 18 dot board, each net in its own colour and joined by solder runs.
+
+## From idea to board
+
+1. **Draw.** Build the schematic from the symbol library or your own parts. The wires make the nets.
+2. **Choose the board.** Pick the kind of board on your bench and its size. Presets cover the common perfboard sizes.
+3. **Lay it out.** Drag the parts onto the board. Every net gets its own colour, and a short or an open connection shows at once. Or use auto-layout: on stripboard and dot board the router places every part and lays the cuts or solder runs.
+4. **Print and solder.** Print the 1:1 sheets, push the parts through the paper, then follow the cut or run sheet. When the prototype works, export a KiCad netlist and draw the real PCB.
 
 ## What you get
 
-- Automatic layout router: places every part, sizes the board, and works out the cuts and link wires
+Design:
+
 - Schematic editor with a standard symbol library and automatic net detection
-- Live strip colouring with real-time conflict detection
-- Lock the board size or individual parts and let the router design around them
-- Parts drawn as their real packages at true size: pick the resistor, capacitor or transistor body you actually have
-- Off-board parts like pots and jacks get solder pads or a connector on the board
-- Editable IC footprints, custom components, flexible passive leads
-- Printable 1:1 build template with a mirrored cut guide and a BOM
-- KiCad-compatible netlist export to turn a prototype into a PCB
-- JSON export and import, shareable edit and view-only links, full undo history
+- IC pinouts from the KiCad symbol library, plus your own custom parts
+- Parts drawn as real packages at true size: choose the body you have
+- Editable footprints and flexible leads for passives
+
+Lay out:
+
+- Four board kinds: stripboard, dot board, tripad board, breadboard PCB
+- Auto-layout for stripboard and dot board: placement, board size, cuts and runs
+- Lock the board size or single parts, and the router works around them
+- Off-board parts such as pots and jacks get pads or a connector
+
+Build and share:
+
+- 1:1 print: placement sheet, mirrored cut or run sheet, parts list
+- KiCad-compatible netlist export
+- JSON export and import, full undo history
+- Edit and view-only links when you host it yourself
 
 ## Print and build
 
-The printout is a true-scale assembly guide: lay it on the board and push the parts through the paper. A mirrored cut guide and a bill of materials are optional. The site shows the same demo circuit photographed at each stage of a real build: printing at 1:1, cutting the tracks, pushing parts through the template, and the soldered joint side of the finished board.
+The printout is a true-scale build guide: a placement sheet for the component side, a mirrored cut sheet (stripboard) or solder-run sheet (dot board) for the copper side, and a parts list.
 
 ## Where to go next
 

@@ -11,12 +11,12 @@ export default function SiteHeader({
 }) {
   return (
     <header className="h-12 flex items-center px-3 sm:px-6 justify-between border-b-2 border-[var(--copper)]">
-      <div className="flex items-center min-w-0 mr-2 font-mono text-sm">
+      <div className="flex items-center min-w-0 mr-2 font-site text-sm">
         <Link
           href="/"
-          className="truncate font-semibold tracking-wide text-[#113768] dark:text-[#5b9bd5] hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors"
+          className="truncate font-serif font-medium text-lg text-[#113768] dark:text-[#5b9bd5] hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors"
         >
-          protoboard_editor
+          Protoboard Editor
         </Link>
         {breadcrumb && (
           <>

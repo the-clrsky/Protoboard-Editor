@@ -3,7 +3,7 @@ import { FEEDBACK_HREF } from "@/lib/mode";
 
 export default function SiteFooter() {
   return (
-    <div className="border-t border-neutral-200 dark:border-neutral-700 mt-auto">
+    <div className="border-t border-neutral-200 dark:border-neutral-700 mt-auto font-site">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs text-neutral-400 dark:text-neutral-500">
         <span className="sm:max-w-md">
           a hobby project by{" "}

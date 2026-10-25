@@ -87,8 +87,8 @@ export default function ProjectViewPage() {
         {/* Mobile header */}
         <div className="bg-[#113768] text-white px-4 py-2 text-sm border-b-2 border-[var(--copper)]">
           <div className="flex items-center justify-between mb-2">
-            <a href="/" className="font-mono font-semibold tracking-wide hover:opacity-80 transition-opacity text-sm">
-              ← protoboard_editor
+            <a href="/" className="font-serif text-base hover:opacity-80 transition-opacity text-sm">
+              ← Protoboard Editor
             </a>
             <ThemeToggle />
           </div>
@@ -182,8 +182,8 @@ export default function ProjectViewPage() {
     <div className="flex flex-col h-screen bg-[#fafafa] dark:bg-[#121212]">
       <div className="h-12 bg-[#113768] text-white flex items-center px-5 justify-between text-sm border-b-2 border-[var(--copper)]">
         <div className="flex items-center gap-2">
-          <a href="/" className="font-mono font-semibold tracking-wide hover:opacity-80 transition-opacity">
-            ← protoboard_editor
+          <a href="/" className="font-serif text-base hover:opacity-80 transition-opacity">
+            ← Protoboard Editor
           </a>
           <span className="opacity-40">|</span>
           <span className="font-semibold">{projectName}</span>

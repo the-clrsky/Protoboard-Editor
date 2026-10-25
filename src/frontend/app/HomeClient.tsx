@@ -19,12 +19,16 @@ import { SITE_URL } from "@/lib/site";
 import StaticModeBanner from "@/components/StaticModeBanner";
 import { useProjectStore } from "@/store/useProjectStore";
 import StripboardPreview from "@/components/StripboardPreview";
+import BoardTypePreview from "@/components/BoardTypePreview";
+import { BOARD_TYPES } from "@/components/stripboard/boardTypes";
+import type { BoardType } from "@/types";
 import { track } from "@/lib/track";
 import SiteHeader from "@/components/SiteHeader";
 import AuthModal from "@/components/AuthModal";
 import PasswordInput from "@/components/PasswordInput";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 
 export default function HomeClient({
   initialUser,
@@ -63,9 +67,9 @@ export default function HomeClient({
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSaving, setEmailSaving] = useState(false);
 
-  const handleNewProject = () => {
-    resetProject();
-    track("project-create");
+  const handleNewProject = (type?: BoardType) => {
+    resetProject(type);
+    track("project-create", type ? { board: type } : undefined);
     router.push("/project/new");
   };
 
@@ -83,61 +87,61 @@ export default function HomeClient({
     router.refresh();
   };
 
-  const steps = [
-    { title: "Draw the schematic", body: "Place components from the symbol library or create your own and wire up the pins to define your nets." },
-    { title: "Drop onto the board", body: "Drag parts onto the stripboard. Strips colour-code to your nets automatically." },
-    { title: "Resolve conflicts", body: "Add cuts and link wires. Anything wrong lights up red the moment it happens." },
-    { title: "Print and build", body: "Print a 1:1 template, lay it on the board, and push parts straight through the paper." },
+  // Card text per board kind (the full description is in boardTypes.ts)
+  const boardBlurbs: Record<BoardType, string> = {
+    strip: "Copper strips along every row. Cut them where two nets must part.",
+    dot: "A lone pad per hole. Solder runs join the pads you choose.",
+    tripad: "Pads joined in threes along each row. Bridge the groups with solder.",
+    breadboard: "The breadboard pattern in copper: power rails and joined columns.",
+  };
+
+  const steps: { title: string; body: string; aside?: { label: string; body: string; href?: string } }[] = [
+    { title: "Draw", body: "Build the schematic from the symbol library or your own parts. The wires make the nets." },
+    { title: "Choose the board", body: "Pick the kind of board on your bench and its size. Presets cover the common perfboard sizes." },
+    {
+      title: "Lay it out",
+      body: "Drag the parts onto the board. Every net gets its own colour, and a short or an open connection shows at once.",
+      aside: { label: "or auto-layout", body: "On stripboard and dot board the router places every part and lays the cuts or solder runs.", href: "/how-auto-layout-works" },
+    },
+    {
+      title: "Print and solder",
+      body: "Print the 1:1 sheets, push the parts through the paper, then follow the cut or run sheet.",
+      aside: { label: "or go to PCB", body: "When the prototype works, export a KiCad netlist and draw the real PCB." },
+    },
   ];
 
-  // Screenshots of the demo circuit and the built board
-  const demoShots = (
-    <>
-      <img
-        src={withBase("/demo-circuit.png")}
-        alt="Protoboard Editor with schematic and board layout side by side"
-        className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 w-full transition-colors dark:hidden"
-      />
-      <img
-        src={withBase("/demo-circuit-dark.png")}
-        alt="Protoboard Editor with schematic and board layout side by side"
-        className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 w-full transition-colors hidden dark:block"
-      />
-      <div className="flex flex-col items-center gap-2 mt-3">
-        <img
-          src={withBase("/board-fully-assembled-front.jpg")}
-          alt="The demo circuit built on stripboard"
-          loading="lazy"
-          className="w-56 sm:w-72 max-w-full rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 transition-colors"
-        />
-        {!STATIC && <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">click to open this demo circuit</p>}
-      </div>
-    </>
-  );
-
-  // Photos of the demo circuit above, built on real stripboard.
-  const buildShots = [
-    { src: "/print-out-with-board.jpg", caption: "print at 1:1", alt: "Printed placement and cut sheets with a bare stripboard laid on top" },
-    { src: "/drilled-holes.jpg", caption: "cut the tracks", alt: "Stripboard with copper tracks cut at the marked holes" },
-    { src: "/board-partly-assembled-front.jpg", caption: "push parts through", alt: "Printed template taped to the board with the first components pushed through the paper" },
-    { src: "/board-fully-assembled-back.jpg", caption: "solder the joints", alt: "Solder side of the finished stripboard" },
-  ];
-
-  const features = [
-    "Automatic layout router: places every part, sizes the board, and works out the cuts and link wires",
-    "Schematic editor with a standard symbol library and automatic net detection",
-    "Live strip colouring with real-time conflict detection",
-    "Lock the board size or individual parts and let the router design around them",
-    "Parts drawn as their real packages at true size: pick the resistor, capacitor or transistor body you actually have",
-    "Off-board parts like pots and jacks get solder pads or a connector on the board",
-    "Editable IC footprints, custom components, flexible passive leads",
-    "Printable 1:1 build template with a mirrored cut guide and a BOM",
-    "KiCad-compatible netlist export to turn a prototype into a PCB",
-    "JSON export and import, shareable edit and view-only links, full undo history",
+  const featureGroups = [
+    {
+      title: "Design",
+      items: [
+        "Schematic editor with a standard symbol library and automatic net detection",
+        "IC pinouts from the KiCad symbol library, plus your own custom parts",
+        "Parts drawn as real packages at true size: choose the body you have",
+        "Editable footprints and flexible leads for passives",
+      ],
+    },
+    {
+      title: "Lay out",
+      items: [
+        "Four board kinds: stripboard, dot board, tripad board, breadboard PCB",
+        "Auto-layout for stripboard and dot board: placement, board size, cuts and runs",
+        "Lock the board size or single parts, and the router works around them",
+        "Off-board parts such as pots and jacks get pads or a connector",
+      ],
+    },
+    {
+      title: "Build and share",
+      items: [
+        "1:1 print: placement sheet, mirrored cut or run sheet, parts list",
+        "KiCad-compatible netlist export",
+        "JSON export and import, full undo history",
+        "Edit and view-only links when you host it yourself",
+      ],
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#121212] bg-[radial-gradient(var(--page-dot)_1px,transparent_1.5px)] [background-size:24px_24px] flex flex-col">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#121212] bg-[radial-gradient(var(--page-dot)_1px,transparent_1.5px)] [background-size:24px_24px] font-site flex flex-col">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -147,18 +151,19 @@ export default function HomeClient({
             name: "Protoboard Editor",
             url: SITE_URL,
             description:
-              "Free online stripboard layout editor with a built-in schematic editor and an automatic layout router. Draw circuits with standard symbols, wire up nets, then let the router lay out the whole board or place parts by hand with live strip colouring. Parts are drawn as their real packages at true size. Print a true-scale build template with a mirrored cut guide and a bill of materials (BOM), or export a KiCad-compatible netlist to turn the prototype into a PCB.",
+              "Free, open-source layout editor for prototyping boards: stripboard, dot board (perfboard), tripad board and breadboard PCB. Draw the schematic with standard symbols, then place the parts by hand with live net colouring, or let the automatic layout router place them and lay the strip cuts or solder runs. Parts are drawn as their real packages at true size. Print a true-scale build template with a mirrored cut or solder-run sheet and a bill of materials (BOM), or export a KiCad-compatible netlist to turn the prototype into a PCB.",
             applicationCategory: "DesignApplication",
             operatingSystem: "Any",
             featureList: [
+              "Stripboard, dot board, tripad board and breadboard PCB layouts",
               "Schematic editor with a standard symbol library",
-              "Automatic stripboard layout router that places every part at the real size of its package",
+              "Automatic layout router for stripboard and dot board that places every part at the real size of its package",
               "Lockable board dimensions and lockable component positions the router designs around",
-              "Live strip colouring with real-time conflict detection",
+              "Live net colouring with real-time conflict detection",
               "Realistic part rendering at true package size, with selectable packages",
               "Off-board parts wired to solder pads or connectors",
               "Editable component footprints and custom components",
-              "Printable 1:1 build template with mirrored cut guide and BOM",
+              "Printable 1:1 build template with a mirrored cut or solder-run sheet and BOM",
               "KiCad-compatible netlist export",
               "Shareable edit and view-only project links",
             ],
@@ -180,10 +185,10 @@ export default function HomeClient({
         actions={
           STATIC ? null : user ? (
             <>
-              <span className="font-mono text-neutral-500 dark:text-neutral-400 hidden sm:inline">{user.username}</span>
+              <span className="font-site-mono text-neutral-500 dark:text-neutral-400 hidden sm:inline">{user.username}</span>
               <button
                 onClick={handleLogout}
-                className="font-mono px-2 sm:px-3 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-[var(--copper)] hover:text-[var(--copper)] transition-colors"
+                className="font-site-mono px-2 sm:px-3 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-[var(--copper)] hover:text-[var(--copper)] transition-colors"
               >
                 logout
               </button>
@@ -192,13 +197,13 @@ export default function HomeClient({
             <>
               <button
                 onClick={() => setShowAuth("login")}
-                className="font-mono px-2 sm:px-3 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-[var(--copper)] hover:text-[var(--copper)] transition-colors"
+                className="font-site-mono px-2 sm:px-3 py-1.5 rounded border border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-[var(--copper)] hover:text-[var(--copper)] transition-colors"
               >
                 login
               </button>
               <button
                 onClick={() => setShowAuth("register")}
-                className="font-mono px-2 sm:px-3 py-1.5 rounded bg-[#113768] text-white border-2 border-[#113768] hover:border-[var(--copper)] transition-colors"
+                className="font-site-mono px-2 sm:px-3 py-1.5 rounded bg-[#113768] text-white border-2 border-[#113768] hover:border-[var(--copper)] transition-colors"
               >
                 register
               </button>
@@ -210,27 +215,27 @@ export default function HomeClient({
       <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex-1">
         {/* Hero */}
         <div className="mb-8">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--copper)] mb-3">// PCB-free prototyping</p>
-          <h1 className="font-mono text-3xl sm:text-4xl font-bold text-[#113768] dark:text-[#5b9bd5] mb-3 tracking-tight">
+          <p className="font-site-mono text-xs uppercase tracking-[0.2em] text-[var(--copper)] mb-3">{"// one editor, four kinds of board"}</p>
+          <h1 className="font-serif font-medium text-4xl sm:text-5xl leading-tight text-[#113768] dark:text-[#5b9bd5] mb-3">
             Protoboard Editor
           </h1>
-          <p className="text-neutral-600 dark:text-neutral-400 text-base sm:text-lg max-w-2xl">
-            Draw a schematic, place the parts onto a virtual board. The copper strips will take the color of the nets with live conflict detection and an overview of what still needs to be connected. Or hand the circuit to the auto-layout router: it places every part, picks a board size, and works out the strip cuts and link wires for you.
+          <p className="text-neutral-600 dark:text-neutral-400 text-base sm:text-[17px] leading-relaxed max-w-2xl">
+            Plan a circuit on the board you will really solder: stripboard, dot board, tripad board or a breadboard-style PCB. Draw the schematic once. Then place the parts by hand, with every net in its own colour, or let auto-layout place them and lay the cuts or solder runs for you.
           </p>
         </div>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <button
-            onClick={handleNewProject}
-            className="flex-1 font-mono bg-[#113768] text-white py-3 rounded-md text-sm font-medium border-2 border-[#113768] hover:border-[var(--copper)] hover:bg-[#0d2a50] transition-colors"
+            onClick={() => handleNewProject()}
+            className="flex-1 font-site-mono bg-[#113768] text-white py-3 rounded-md text-sm font-medium border-2 border-[#113768] hover:border-[var(--copper)] hover:bg-[#0d2a50] transition-colors"
           >
             ▸ new project
           </button>
           <Link
             href="/guide"
             onClick={() => track("content-cta", { from: "home", to: "guide" })}
-            className="font-mono py-3 px-6 rounded-md text-sm font-medium border-2 border-dashed border-[#113768] dark:border-[#5b9bd5] text-[#113768] dark:text-[#5b9bd5] hover:border-[var(--copper)] hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors text-center"
+            className="font-site-mono py-3 px-6 rounded-md text-sm font-medium border-2 border-dashed border-[#113768] dark:border-[#5b9bd5] text-[#113768] dark:text-[#5b9bd5] hover:border-[var(--copper)] hover:text-[var(--copper)] dark:hover:text-[var(--copper)] transition-colors text-center"
           >
             see short guide
           </Link>
@@ -240,141 +245,130 @@ export default function HomeClient({
 
         {/* What's new pointer */}
         <div className="mb-12 text-sm text-neutral-600 dark:text-neutral-400 space-y-1">
-          <p>Protoboard Editor is a rather new and actively developing project, with new features getting added every now and then.</p>
+          <p>This fork is young and still grows. New board features land often.</p>
           <p>
-            <Link href="/updates" onClick={() => track("content-cta", { from: "home", to: "updates" })} className="font-mono text-[var(--copper)] hover:underline">
-              See what&apos;s new and what&apos;s coming next →
+            <Link href="/updates" onClick={() => track("content-cta", { from: "home", to: "updates" })} className="font-site-mono text-[var(--copper)] hover:underline">
+              Changelog and plans →
             </Link>
           </p>
           <p>
-            <Link href={FEEDBACK_HREF} className="font-mono text-[var(--copper)] hover:underline">
-              Have an idea, a bug, or a question? Leave me a message →
+            <Link href={FEEDBACK_HREF} className="font-site-mono text-[var(--copper)] hover:underline">
+              Found a bug or have an idea? Send feedback →
             </Link>
           </p>
+        </div>
+
+        {/* Board kinds: each card starts a new project on that board */}
+        <div className="mb-12">
+          <h2 className="font-site-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-1">start on a board</h2>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Each card opens a new project on that board. You can change the kind later in the editor.</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {BOARD_TYPES.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => handleNewProject(b.id)}
+                className="group text-left rounded-lg border-2 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#161616] p-3 hover:border-[var(--copper)] dark:hover:border-[var(--copper)] transition-colors flex flex-col"
+              >
+                <BoardTypePreview type={b.id} className="w-full h-auto mb-3" />
+                <span className="font-serif font-medium text-lg leading-snug text-[#113768] dark:text-[#5b9bd5] group-hover:text-[var(--copper)] transition-colors">{b.name}</span>
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 flex-1">{boardBlurbs[b.id]}</span>
+                <span className={`font-site-mono text-[10px] uppercase tracking-[0.15em] mt-2 ${b.autoLayout ? "text-[var(--copper)]" : "text-neutral-400 dark:text-neutral-500"}`}>
+                  {b.autoLayout ? "auto-layout" : "hand layout"}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {!user && (<>
-        {/* Editor screenshot */}
-        <div className="mb-12">
-          {/* Browser-only build: no view page, so the shots are not a link */}
-          {STATIC ? <div>{demoShots}</div> : (
-          <Link href="/view/85394a12-c5f3-4aff-a874-55837bbf4a80" className="block group">
-            {demoShots}
-          </Link>
-          )}
-        </div>
+        {/* Editor screenshot: the demo project on a dot board. Wider than the
+            text column on large screens, so the board stays readable. */}
+        <figure className="mb-12 lg:-mx-32 xl:-mx-48">
+          <img
+            src={withBase("/demo-dotboard.png")}
+            alt="Protoboard Editor with the schematic of a 555 LED flasher on the left and its dot board layout on the right"
+            className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full dark:hidden"
+          />
+          <img
+            src={withBase("/demo-dotboard-dark.png")}
+            alt="Protoboard Editor with the schematic of a 555 LED flasher on the left and its dot board layout on the right"
+            className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full hidden dark:block"
+          />
+          <figcaption className="font-site-mono text-xs text-neutral-500 dark:text-neutral-400 mt-2 text-center">
+            555 LED flasher: auto-layout put it on a 7 × 18 dot board. each colour is one net, joined by solder runs.
+          </figcaption>
+        </figure>
 
         {/* How it works */}
         <div className="mb-12">
-          <h2 className="font-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">Steps</h2>
-
-          {/* Optional shortcut: auto-layout covers the placing and fixing steps */}
-          <div className="lg:grid lg:grid-cols-4 lg:gap-px">
-            <div className="lg:col-start-2 lg:col-span-2">
-              <div className="rounded-lg border border-dashed border-[var(--copper)] bg-[var(--copper)]/[0.06] px-4 py-3">
-                <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--copper)]">optional</span>
-                  <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Auto-layout</p>
-                </div>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Skip steps 2 and 3: the router places every part, picks a board size, and works out the cuts and link wires for you.{" "}
-                  <Link href="/how-auto-layout-works" onClick={() => track("content-cta", { from: "home", to: "explainer" })} className="text-[var(--copper)] hover:underline">How it works &rarr;</Link>
-                </p>
-              </div>
-              <div className="flex justify-center text-[var(--copper)] text-[10px] leading-none py-1" aria-hidden="true">▼</div>
-            </div>
-          </div>
-
-          {/* Main flow */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-200 dark:bg-neutral-800">
+          <h2 className="font-site-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">from idea to board</h2>
+          <ol className="border-l-2 border-dashed border-[var(--copper)]/50 ml-3 space-y-6">
             {steps.map((s, i) => (
-              <div key={s.title} className="bg-[#fafafa] dark:bg-[#161616] p-4">
-                <div className="font-mono text-[var(--copper)] text-sm mb-2">{String(i + 1).padStart(3, "0")}</div>
-                <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-1">{s.title}</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">{s.body}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Optional exit: take the finished circuit to an EDA tool */}
-          <div className="lg:grid lg:grid-cols-4 lg:gap-px">
-            <div className="lg:col-start-4">
-              <div className="flex justify-center text-[var(--copper)] text-[10px] leading-none py-1" aria-hidden="true">▼</div>
-              <div className="rounded-lg border border-dashed border-[var(--copper)] bg-[var(--copper)]/[0.06] px-4 py-3">
-                <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--copper)]">optional</span>
-                  <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Export a netlist</p>
+              <li key={s.title} className="relative pl-7">
+                <span className="absolute -left-[15px] top-0 w-7 h-7 rounded-full border-2 border-[var(--copper)] bg-[#fafafa] dark:bg-[#121212] font-site-mono text-xs text-[var(--copper)] flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <div className="sm:flex sm:gap-6">
+                  <div className="sm:flex-1">
+                    <p className="font-serif font-medium text-lg text-neutral-800 dark:text-neutral-200 leading-7">{s.title}</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">{s.body}</p>
+                  </div>
+                  {s.aside && (
+                    <div className="mt-2 sm:mt-0 sm:w-64 flex-shrink-0 rounded-md border border-dashed border-[var(--copper)] bg-[var(--copper)]/[0.06] px-3 py-2">
+                      <span className="font-site-mono text-[10px] uppercase tracking-[0.15em] text-[var(--copper)]">{s.aside.label}</span>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                        {s.aside.body}
+                        {s.aside.href && (
+                          <>
+                            {" "}
+                            <Link href={s.aside.href} onClick={() => track("content-cta", { from: "home", to: "explainer" })} className="text-[var(--copper)] hover:underline">How it works &rarr;</Link>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Take the finished circuit into KiCad or another EDA tool as a netlist and turn it into a real PCB.
-                </p>
-              </div>
-            </div>
-          </div>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Features */}
         <div className="mb-12">
-          <h2 className="font-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">what you get</h2>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
-            {features.map((f) => (
-              <li key={f} className="flex gap-2.5 text-sm text-neutral-600 dark:text-neutral-400">
-                <span className="font-mono text-[var(--copper)] leading-5 flex-shrink-0" aria-hidden="true">▸</span>
-                <span>{f}</span>
-              </li>
+          <h2 className="font-site-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">what you get</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {featureGroups.map((g) => (
+              <div key={g.title} className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#161616] p-4">
+                <p className="font-serif font-medium text-lg text-[#113768] dark:text-[#5b9bd5] mb-3">{g.title}</p>
+                <ul className="space-y-2">
+                  {g.items.map((f) => (
+                    <li key={f} className="flex gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                      <span className="font-site-mono text-[var(--copper)] leading-5 flex-shrink-0" aria-hidden="true">▸</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
         {/* Print demo */}
         <div className="mb-12">
-          <h2 className="font-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">print and build</h2>
+          <h2 className="font-site-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">print and build</h2>
           <img
-            src={withBase("/print-demo.png")}
-            alt="Printable 1:1 stripboard build template with a parts list"
-            className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full"
+            src={withBase("/print-dotboard.png")}
+            alt="Printable 1:1 dot board build template: placement sheet, mirrored solder-run sheet and parts list"
+            loading="lazy"
+            decoding="async"
+            className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full max-w-md mx-auto block"
           />
-          <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400 mt-2 text-center">lay it on the board, push parts through the paper. mirrored cut guide + BOM optional.</p>
-
-          {/* The same circuit, built from that printout */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            {buildShots.map((shot) => (
-              <figure key={shot.src}>
-                <img
-                  src={withBase(shot.src)}
-                  alt={shot.alt}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full aspect-[4/3] object-cover rounded-lg border border-neutral-200 dark:border-neutral-700"
-                />
-                <figcaption className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400 mt-1.5 text-center">
-                  {shot.caption}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-          <figure className="mt-3">
-            <img
-              src={withBase("/board-fully-assembled-front.jpg")}
-              alt="Finished stripboard with every component soldered in place"
-              loading="lazy"
-              decoding="async"
-              className="w-full aspect-[3/2] object-cover rounded-lg border border-neutral-200 dark:border-neutral-700"
-            />
-            <figcaption className="font-mono text-xs text-neutral-500 dark:text-neutral-400 mt-2 text-center">
-              done. the demo circuit above.
-            </figcaption>
-          </figure>
+          <p className="font-site-mono text-xs text-neutral-500 dark:text-neutral-400 mt-2 text-center">placement sheet on top, the solder-run sheet mirrored for the copper side, then the parts list.</p>
         </div>
 
-
-
         {/* Free banner */}
-        <div className="mb-12 font-mono text-xs sm:text-sm text-center text-neutral-500 dark:text-neutral-400 border-y border-dashed border-neutral-300 dark:border-neutral-700 py-4">
-          <span className="relative inline-block">
-            <span className="text-[var(--copper)]">free forever</span>
-            <span className="absolute left-1/2 top-full -translate-x-1/2 mt-0.5 whitespace-nowrap text-[9px] leading-none text-neutral-400 dark:text-neutral-500">(at least until AI steals my job)</span>
-          </span> · account optional · no ads
+        <div className="mb-12 font-site-mono text-xs sm:text-sm text-center text-neutral-500 dark:text-neutral-400 border-y border-dashed border-neutral-300 dark:border-neutral-700 py-4">
+          <span className="text-[var(--copper)]">free and open source</span> (GPL-3.0) · in your browser or on your own server · no ads
         </div>
 
         </>)}
@@ -383,7 +377,7 @@ export default function HomeClient({
         {/* Account settings */}
         {user && (
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-3">Account</h2>
+            <h2 className="font-serif font-medium text-xl text-neutral-800 dark:text-neutral-200 mb-3">Account</h2>
             <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg px-4 py-3 flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400 min-w-0 break-words">Logged in as <span className="font-medium text-neutral-900 dark:text-neutral-100">{user.username}</span></span>
@@ -422,7 +416,7 @@ export default function HomeClient({
         {/* The user's part library */}
         {user && (
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-3">Your Parts</h2>
+            <h2 className="font-serif font-medium text-xl text-neutral-800 dark:text-neutral-200 mb-3">Your Parts</h2>
             <Link
               href="/parts"
               onClick={() => track("content-cta", { from: "home", to: "parts" })}
@@ -441,7 +435,7 @@ export default function HomeClient({
         {/* User projects */}
         {showProjects && (
           <div>
-            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-3">Your Projects</h2>
+            <h2 className="font-serif font-medium text-xl text-neutral-800 dark:text-neutral-200 mb-3">Your Projects</h2>
             {projects.length === 0 ? (
               <p className="text-neutral-400 dark:text-neutral-500 text-sm">No projects yet. Create one above.</p>
             ) : (

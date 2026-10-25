@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -11,6 +11,25 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// The fonts of sadmanbishal.com, for the home page, site header and footer
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 const siteUrl = SITE_URL;
@@ -60,10 +79,10 @@ export const metadata: Metadata = {
       "Free layout editor for stripboards, dot boards and breadboard PCBs, with a built-in schematic editor and an automatic layouter. Draw circuits with standard symbols, wire up nets, then let the layouter build the whole board for you, compact and without slanted or crossing wires, or place parts by hand with live strip colouring. Parts are drawn as their real packages at true size. Print a 1:1 build template with a parts list (BOM), or export a KiCad netlist.",
     images: [
       {
-        url: "/demo-circuit.png",
-        width: 3841,
-        height: 2025,
-        alt: "Protoboard Editor showing schematic and board layout side by side",
+        url: "/demo-dotboard.png",
+        width: 3840,
+        height: 1360,
+        alt: "Protoboard Editor showing the schematic and the dot board layout of a 555 LED flasher side by side",
       },
     ],
   },
@@ -72,7 +91,7 @@ export const metadata: Metadata = {
     title: "Protoboard Editor",
     description:
       "Free layout editor for stripboards, dot boards and breadboard PCBs, with a built-in schematic editor and an automatic layouter. Draw circuits, wire up nets, let the layouter build a compact board with no slanted or crossing wires, see every part at its real size, print a 1:1 build template with a BOM, or export a KiCad netlist.",
-    images: ["/demo-circuit.png"],
+    images: ["/demo-dotboard.png"],
   },
   alternates: {
     canonical: siteUrl,
@@ -95,7 +114,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
       </body>

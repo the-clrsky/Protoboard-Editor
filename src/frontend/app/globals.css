@@ -75,6 +75,12 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* The fonts of sadmanbishal.com, for the home page, site header and footer:
+     a serif for headings, Inter for text, JetBrains Mono for labels */
+  --font-serif: var(--font-newsreader), Georgia, serif;
+  --font-site: var(--font-inter), system-ui, sans-serif;
+  --font-site-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 body {

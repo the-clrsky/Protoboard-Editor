@@ -152,8 +152,8 @@ export default function SavedProjectEditor({ editUuid }: { editUuid: string }) {
     return (
       <div className="flex flex-col h-screen bg-[#fafafa] dark:bg-[#121212]">
         <div className="bg-[#113768] text-white px-4 py-3 border-b-2 border-[var(--copper)]">
-          <a href={withBase("/")} className="font-mono font-semibold tracking-wide hover:opacity-80 transition-opacity text-sm">
-            ← protoboard_editor
+          <a href={withBase("/")} className="font-serif text-base hover:opacity-80 transition-opacity text-sm">
+            ← Protoboard Editor
           </a>
         </div>
         <div className="flex-1 flex items-center justify-center px-6">

@@ -15,7 +15,7 @@ export default function StaticModeBanner() {
   return (
     <div className="mb-6 rounded-lg border border-dashed border-[#113768] dark:border-[#5b9bd5] px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400 space-y-1">
       <p>
-        <span className="font-mono text-[#113768] dark:text-[#5b9bd5]">Browser-only version.</span> Your projects stay in this
+        <span className="font-site-mono text-[#113768] dark:text-[#5b9bd5]">Browser-only version.</span> Your projects stay in this
         browser on this device. Use Export in the editor to keep a backup file.{" "}
         <a href={SELF_HOST_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--copper)] hover:underline">
           Self-host

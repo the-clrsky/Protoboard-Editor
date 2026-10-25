@@ -364,9 +364,9 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
         <div className="flex items-center gap-3">
           <button
             onClick={handleExit}
-            className="font-mono font-semibold tracking-wide hover:opacity-80 transition-opacity"
+            className="font-serif text-base hover:opacity-80 transition-opacity"
           >
-            ← protoboard_editor
+            ← Protoboard Editor
           </button>
           <span className="opacity-40">|</span>
           {editingName ? (

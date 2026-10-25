@@ -281,7 +281,8 @@ interface ProjectActions {
   exportProject: () => Project;
   loadProject: (data: Project) => void;
   importProject: (data: Project) => void;
-  resetProject: () => void;
+  // Empty project; `type` picks the board it starts on (default stripboard)
+  resetProject: (type?: BoardType) => void;
 
   // Undo/redo
   pushSnapshot: () => void;
@@ -1784,7 +1785,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ ...prepareProjectState(data), isDirty: true });
   },
 
-  resetProject: () => set({
+  resetProject: (type) => set({
     name: "Untitled Project",
     description: "",
     notes: "",
@@ -1795,7 +1796,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     schematicWires: [],
     netLabels: [],
     wiring: "touch",
-    board: { rows: 20, cols: 20, cuts: [], wires: [] },
+    board: type && type !== "strip"
+      ? { rows: 20, cols: 20, cuts: [], wires: [], type, links: [] }
+      : { rows: 20, cols: 20, cuts: [], wires: [] },
     showValuesOnBoard: false,
       autoSave: false,
     spanOverrides: undefined,
