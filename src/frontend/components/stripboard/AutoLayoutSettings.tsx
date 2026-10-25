@@ -6,6 +6,7 @@ import { LAYOUT_VERSION, V5_EFFORT_DEFAULT, V5_EFFORT_STOPS, defaultPermWorkers,
 import type { AutoLayoutWorkerMessage } from "./autoLayoutWorker";
 import { useBoardView } from "@/hooks/useBoardView";
 import { track } from "@/lib/track";
+import { withBase } from "@/lib/mode";
 
 /**
  * Popup with the project's auto-layout settings. Rendered below the gear
@@ -215,7 +216,7 @@ export default function AutoLayoutSettings({ onClose }: { onClose: () => void })
             </p>
           </div>
           <div className="mt-3 border-t border-neutral-200 dark:border-neutral-700 pt-3">
-            <a href="/how-auto-layout-works" target="_blank" rel="noopener noreferrer" onClick={() => track("content-cta", { from: "layout-settings", to: "explainer" })} className="text-xs text-[var(--copper)] hover:underline">
+            <a href={withBase("/how-auto-layout-works")} target="_blank" rel="noopener noreferrer" onClick={() => track("content-cta", { from: "layout-settings", to: "explainer" })} className="text-xs text-[var(--copper)] hover:underline">
               How the layouter works, with demos to play with &rarr;
             </a>
           </div>

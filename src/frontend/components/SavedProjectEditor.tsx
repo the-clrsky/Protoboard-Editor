@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
 import { useProjectStore } from "@/store/useProjectStore";
-import { getProject, saveProject } from "@/lib/api";
+import { getProject, saveProject } from "@/lib/projects";
+import { withBase } from "@/lib/mode";
 import { track } from "@/lib/track";
 import { Project } from "@/types";
 import SchematicEditor from "@/components/SchematicEditor";
@@ -13,9 +13,9 @@ import SplitPane from "@/components/SplitPane";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import ShortcutOverlay from "@/components/ShortcutOverlay";
 
-export default function ProjectEditorPage() {
-  const params = useParams();
-  const editUuid = params.editUuid as string;
+// Editor for a saved project: /project/[editUuid] (server) and
+// /project/open/?id= (static build, project kept in the browser).
+export default function SavedProjectEditor({ editUuid }: { editUuid: string }) {
   const loadProject = useProjectStore((s) => s.loadProject);
   const isMobile = useIsMobile();
   const setProjectName = useProjectStore((s) => s.setProjectName);
@@ -142,7 +142,7 @@ export default function ProjectEditorPage() {
       <div className="flex h-screen items-center justify-center bg-[#fafafa] dark:bg-[#121212]">
         <div className="text-center">
           <p className="text-lg text-neutral-700 dark:text-neutral-300 mb-2">Project not found</p>
-          <a href="/" className="text-[#113768] dark:text-[#5b9bd5] hover:underline text-sm">Back to home</a>
+          <a href={withBase("/")} className="text-[#113768] dark:text-[#5b9bd5] hover:underline text-sm">Back to home</a>
         </div>
       </div>
     );
@@ -152,7 +152,7 @@ export default function ProjectEditorPage() {
     return (
       <div className="flex flex-col h-screen bg-[#fafafa] dark:bg-[#121212]">
         <div className="bg-[#113768] text-white px-4 py-3 border-b-2 border-[var(--copper)]">
-          <a href="/" className="font-mono font-semibold tracking-wide hover:opacity-80 transition-opacity text-sm">
+          <a href={withBase("/")} className="font-mono font-semibold tracking-wide hover:opacity-80 transition-opacity text-sm">
             ← protoboard_editor
           </a>
         </div>
@@ -171,7 +171,7 @@ export default function ProjectEditorPage() {
               </a>
             )}
             <a
-              href="/"
+              href={withBase("/")}
               className="block mt-3 text-sm text-[#113768] dark:text-[#5b9bd5] hover:underline"
             >
               Back to home

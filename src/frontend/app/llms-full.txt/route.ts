@@ -1,5 +1,8 @@
 import { AGENT_DOCS, SITE } from "@/data/agentDocs";
 
+// Built once (needed by output: "export"); nothing here reads the request.
+export const dynamic = "force-static";
+
 // Every markdown twin concatenated into one document, the companion to
 // llms.txt for agents that want the whole site in a single fetch.
 const HEADER = `# Protoboard Editor: full documentation

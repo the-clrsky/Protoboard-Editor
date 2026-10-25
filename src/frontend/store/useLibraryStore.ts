@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { ComponentDef } from "@/types";
 import { getLibraryParts, type LibraryPart } from "@/lib/api";
 import { libraryDef } from "@/data/customParts";
+import { STATIC } from "@/lib/mode";
 
 // The signed-in user's own parts, shared by every project they open.
 interface LibraryStore {
@@ -18,6 +19,8 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   parts: null,
   defs: [],
   load: async () => {
+    // Browser-only build: no library, as if signed out (custom parts stay in each project)
+    if (STATIC) return;
     try {
       const parts = await getLibraryParts();
       set({ parts, defs: (parts ?? []).map(libraryDef) });

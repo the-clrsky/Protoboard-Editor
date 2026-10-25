@@ -3,6 +3,7 @@
 // down over waterfalls. Built and rendered by hand in Cities: Skylines; the
 // runs version draws four walks on top. Transparent, so one picture serves
 // both themes.
+import { withBase } from "@/lib/mode";
 
 export default function LandscapeValley({ runs, caption }: { runs?: boolean; caption?: string }) {
   const alt = runs
@@ -10,7 +11,7 @@ export default function LandscapeValley({ runs, caption }: { runs?: boolean; cap
     : "Canyon country as a block model, seen from above: branching canyons cut into a plateau, some of them splitting, their floors stepping down over waterfalls";
   return (
     <figure className="my-6">
-      <img src={runs ? "/canyon-landscape-runs.webp" : "/canyon-landscape.webp"} alt={alt} width={3000} height={2209} className="w-full h-auto" />
+      <img src={withBase(runs ? "/canyon-landscape-runs.webp" : "/canyon-landscape.webp")} alt={alt} width={3000} height={2209} className="w-full h-auto" />
       {caption && <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">{caption}</figcaption>}
     </figure>
   );

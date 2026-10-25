@@ -5,7 +5,9 @@ import { PROJECT_SCHEMA_VERSION } from "@/types";
 import { useRouter } from "next/navigation";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { useProjectStore } from "@/store/useProjectStore";
-import { getMe, logout, claimProject, migrateProjectData, type User } from "@/lib/api";
+import { getMe, logout, claimProject, type User } from "@/lib/api";
+import { migrateProjectData, OLD_VERSION_MESSAGE } from "@/lib/projects";
+import { STATIC } from "@/lib/mode";
 import { track } from "@/lib/track";
 import { toKicadNetlist, collectGeneratedFootprints, FOOTPRINT_LIB_NICKNAME } from "@/lib/netlistExport";
 import { createZip } from "@/lib/zip";
@@ -169,6 +171,7 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
   const [showAuth, setShowAuth] = useState<"login" | "register" | null>(null);
 
   useEffect(() => {
+    if (STATIC) return; // no accounts in the browser-only build
     getMe().then(setUser);
   }, []);
 
@@ -310,7 +313,7 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
         try {
           data = await migrateProjectData(data);
         } catch {
-          alert("Failed to migrate imported project to the current version.");
+          alert(STATIC ? OLD_VERSION_MESSAGE : "Failed to migrate imported project to the current version.");
           return;
         }
       }
@@ -448,7 +451,7 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
                   ? "bg-green-500/80 text-white"
                   : "bg-white/10 hover:bg-white/20"
               }`}
-              title={autoSave ? "Auto-save is on — click to disable" : "Enable auto-save to server"}
+              title={autoSave ? "Auto-save is on — click to disable" : STATIC ? "Enable auto-save in this browser" : "Enable auto-save to server"}
             >
               {autoSave ? "Auto-save on" : "Auto-save"}
             </button>
@@ -489,7 +492,7 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
             className="hidden"
           />
           <span className="opacity-20">|</span>
-          {user ? (
+          {STATIC ? null : user ? (
             <>
               <span className="opacity-70 text-sm">{user.username}</span>
               <button
@@ -529,7 +532,8 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
         </div>
       </div>
 
-      {showPrint && <PrintPreview source="edit" editUuid={editUuid} viewUuid={viewUuid} onClose={() => setShowPrint(false)} />}
+      {/* A browser-only project id means nothing on another device, so no edit QR then */}
+      {showPrint && <PrintPreview source="edit" editUuid={STATIC ? undefined : editUuid} viewUuid={viewUuid} onClose={() => setShowPrint(false)} />}
 
       {/* Description and notes drawer */}
       {showNotes && <ProjectNotesPanel onClose={() => setShowNotes(false)} />}
@@ -581,6 +585,12 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
       {/* Save notice for anonymous users */}
       {showSaveNotice && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-5 py-3 flex items-center gap-3 text-sm">
+          {STATIC ? (
+            <div className="flex-1 text-amber-800 dark:text-amber-200">
+              Project saved in this browser. It is listed on the start page. Clearing the browser data deletes it:
+              use Export to keep a backup file.
+            </div>
+          ) : (
           <div className="flex-1 text-amber-800 dark:text-amber-200">
             Project saved! Bookmark this page or copy the URL to access it later. You need the exact uri to access this project again!
             <button
@@ -591,6 +601,7 @@ export default function ProjectToolbar({ editUuid, viewUuid, onSave, saving, las
             </button>
             {" "}to keep all your projects in one place.
           </div>
+          )}
           <button
             onClick={() => setShowSaveNotice(false)}
             className="text-amber-400 hover:text-amber-600 dark:text-amber-500 dark:hover:text-amber-300 text-lg flex-shrink-0"

@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteFooter from "@/components/SiteFooter";
 import {
-  getUserProjects,
   getLibraryParts,
-  deleteProject,
   deleteAccount,
   changePassword,
   setEmail,
@@ -15,6 +13,10 @@ import {
   type User,
   type ProjectMeta,
 } from "@/lib/api";
+import { getUserProjects, deleteProject, projectEditPath } from "@/lib/projects";
+import { STATIC, FEEDBACK_HREF, withBase } from "@/lib/mode";
+import { SITE_URL } from "@/lib/site";
+import StaticModeBanner from "@/components/StaticModeBanner";
 import { useProjectStore } from "@/store/useProjectStore";
 import StripboardPreview from "@/components/StripboardPreview";
 import { track } from "@/lib/track";
@@ -42,6 +44,11 @@ export default function HomeClient({
     getLibraryParts().then((parts) => setPartCount(parts ? parts.length : null)).catch(() => setPartCount(null));
   }, [user]);
   const [projects, setProjects] = useState<ProjectMeta[]>(initialProjects);
+  // Static build: the projects are in this browser, so load them here (no login)
+  useEffect(() => {
+    if (STATIC) getUserProjects().then(setProjects).catch(() => setProjects([]));
+  }, []);
+  const showProjects = STATIC || !!user;
 
   const [showAuth, setShowAuth] = useState<"login" | "register" | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -83,6 +90,31 @@ export default function HomeClient({
     { title: "Print and build", body: "Print a 1:1 template, lay it on the board, and push parts straight through the paper." },
   ];
 
+  // Screenshots of the demo circuit and the built board
+  const demoShots = (
+    <>
+      <img
+        src={withBase("/demo-circuit.png")}
+        alt="Protoboard Editor with schematic and board layout side by side"
+        className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 w-full transition-colors dark:hidden"
+      />
+      <img
+        src={withBase("/demo-circuit-dark.png")}
+        alt="Protoboard Editor with schematic and board layout side by side"
+        className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 w-full transition-colors hidden dark:block"
+      />
+      <div className="flex flex-col items-center gap-2 mt-3">
+        <img
+          src={withBase("/board-fully-assembled-front.jpg")}
+          alt="The demo circuit built on stripboard"
+          loading="lazy"
+          className="w-56 sm:w-72 max-w-full rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 transition-colors"
+        />
+        {!STATIC && <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">click to open this demo circuit</p>}
+      </div>
+    </>
+  );
+
   // Photos of the demo circuit above, built on real stripboard.
   const buildShots = [
     { src: "/print-out-with-board.jpg", caption: "print at 1:1", alt: "Printed placement and cut sheets with a bare stripboard laid on top" },
@@ -113,7 +145,7 @@ export default function HomeClient({
             "@context": "https://schema.org",
             "@type": "WebApplication",
             name: "Protoboard Editor",
-            url: "http://localhost:3000",
+            url: SITE_URL,
             description:
               "Free online stripboard layout editor with a built-in schematic editor and an automatic layout router. Draw circuits with standard symbols, wire up nets, then let the router lay out the whole board or place parts by hand with live strip colouring. Parts are drawn as their real packages at true size. Print a true-scale build template with a mirrored cut guide and a bill of materials (BOM), or export a KiCad-compatible netlist to turn the prototype into a PCB.",
             applicationCategory: "DesignApplication",
@@ -146,7 +178,7 @@ export default function HomeClient({
       {/* Header */}
       <SiteHeader
         actions={
-          user ? (
+          STATIC ? null : user ? (
             <>
               <span className="font-mono text-neutral-500 dark:text-neutral-400 hidden sm:inline">{user.username}</span>
               <button
@@ -204,6 +236,8 @@ export default function HomeClient({
           </Link>
         </div>
 
+        {STATIC && <StaticModeBanner />}
+
         {/* What's new pointer */}
         <div className="mb-12 text-sm text-neutral-600 dark:text-neutral-400 space-y-1">
           <p>Protoboard Editor is a rather new and actively developing project, with new features getting added every now and then.</p>
@@ -213,7 +247,7 @@ export default function HomeClient({
             </Link>
           </p>
           <p>
-            <Link href="/feedback" className="font-mono text-[var(--copper)] hover:underline">
+            <Link href={FEEDBACK_HREF} className="font-mono text-[var(--copper)] hover:underline">
               Have an idea, a bug, or a question? Leave me a message →
             </Link>
           </p>
@@ -222,27 +256,12 @@ export default function HomeClient({
         {!user && (<>
         {/* Editor screenshot */}
         <div className="mb-12">
+          {/* Browser-only build: no view page, so the shots are not a link */}
+          {STATIC ? <div>{demoShots}</div> : (
           <Link href="/view/85394a12-c5f3-4aff-a874-55837bbf4a80" className="block group">
-            <img
-              src="/demo-circuit.png"
-              alt="Protoboard Editor with schematic and board layout side by side"
-              className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 w-full transition-colors dark:hidden"
-            />
-            <img
-              src="/demo-circuit-dark.png"
-              alt="Protoboard Editor with schematic and board layout side by side"
-              className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 w-full transition-colors hidden dark:block"
-            />
-            <div className="flex flex-col items-center gap-2 mt-3">
-              <img
-                src="/board-fully-assembled-front.jpg"
-                alt="The demo circuit built on stripboard"
-                loading="lazy"
-                className="w-56 sm:w-72 max-w-full rounded-lg border-2 border-neutral-200 dark:border-neutral-700 group-hover:border-[var(--copper)] dark:group-hover:border-[var(--copper)] shadow-sm dark:shadow-neutral-900/30 transition-colors"
-              />
-              <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">click to open this demo circuit</p>
-            </div>
+            {demoShots}
           </Link>
+          )}
         </div>
 
         {/* How it works */}
@@ -311,7 +330,7 @@ export default function HomeClient({
         <div className="mb-12">
           <h2 className="font-mono text-sm uppercase tracking-[0.2em] text-[var(--copper)] mb-5">print and build</h2>
           <img
-            src="/print-demo.png"
+            src={withBase("/print-demo.png")}
             alt="Printable 1:1 stripboard build template with a parts list"
             className="rounded-lg border-2 border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full"
           />
@@ -322,7 +341,7 @@ export default function HomeClient({
             {buildShots.map((shot) => (
               <figure key={shot.src}>
                 <img
-                  src={shot.src}
+                  src={withBase(shot.src)}
                   alt={shot.alt}
                   loading="lazy"
                   decoding="async"
@@ -336,7 +355,7 @@ export default function HomeClient({
           </div>
           <figure className="mt-3">
             <img
-              src="/board-fully-assembled-front.jpg"
+              src={withBase("/board-fully-assembled-front.jpg")}
               alt="Finished stripboard with every component soldered in place"
               loading="lazy"
               decoding="async"
@@ -420,7 +439,7 @@ export default function HomeClient({
         )}
 
         {/* User projects */}
-        {user && (
+        {showProjects && (
           <div>
             <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-3">Your Projects</h2>
             {projects.length === 0 ? (
@@ -430,7 +449,7 @@ export default function HomeClient({
                 {projects.map((project) => (
                   <Link
                     key={project.edit_uuid}
-                    href={`/project/${project.edit_uuid}`}
+                    href={projectEditPath(project.edit_uuid)}
                     className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 sm:px-4 py-3 flex items-center gap-3 sm:gap-4 hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors"
                   >
                     {project.preview_data && (

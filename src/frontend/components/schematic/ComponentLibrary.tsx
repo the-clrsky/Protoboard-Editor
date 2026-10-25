@@ -8,6 +8,7 @@ import { COMPONENT_GROUPS, DEFAULT_COMPONENTS } from "@/data/defaultComponents";
 import { getSymbolDef } from "@/data/symbolDefs";
 import { getSymbolBounds } from "./SymbolRenderer";
 import { track } from "@/lib/track";
+import { withBase } from "@/lib/mode";
 import CustomComponentEditor from "./CustomComponentEditor";
 import { placeFromLibrary } from "./libraryPlacement";
 
@@ -469,7 +470,7 @@ export default function ComponentLibrary() {
         </button>
         {libraryLoaded && (
           <a
-            href="/parts"
+            href={withBase("/parts")}
             target="_blank"
             rel="noopener"
             className="block mt-1.5 text-center font-mono text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-[var(--copper)]"

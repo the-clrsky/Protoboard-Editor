@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import ReadDepth from "@/components/ReadDepth";
 import SiteFooter from "@/components/SiteFooter";
+import { FEEDBACK_HREF, withBase } from "@/lib/mode";
 import AnnealDemo from "./figures/AnnealDemo";
 import SequencePairDemo from "./figures/SequencePairDemo";
 import StepLinesDemo from "./figures/StepLinesDemo";
@@ -21,8 +23,8 @@ export const metadata: Metadata = {
   description:
     "How the Protoboard Editor's automatic layouter works, explained for the curious: what simulated annealing is, what a problem needs so it can be annealed, and how a stripboard is described, scored, searched and finished.",
   alternates: {
-    canonical: "http://localhost:3000/how-auto-layout-works",
-    types: { "text/markdown": "http://localhost:3000/how-auto-layout-works.md" },
+    canonical: `${SITE_URL}/how-auto-layout-works`,
+    types: { "text/markdown": `${SITE_URL}/how-auto-layout-works.md` },
   },
 };
 
@@ -98,8 +100,8 @@ export default function AutoLayoutGuidePage() {
                 every other hole in that row. Nothing else is connected to anything.
               </P>
               <figure className="my-4">
-                <img src="/bare-stripboard.png" alt="A bare piece of stripboard: a grid of holes with continuous copper strips running along each row" width={1347} height={705} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
-                <img src="/bare-stripboard-dark.png" alt="A bare piece of stripboard: a grid of holes with continuous copper strips running along each row, dark mode" width={1347} height={705} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
+                <img src={withBase("/bare-stripboard.png")} alt="A bare piece of stripboard: a grid of holes with continuous copper strips running along each row" width={1347} height={705} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
+                <img src={withBase("/bare-stripboard-dark.png")} alt="A bare piece of stripboard: a grid of holes with continuous copper strips running along each row, dark mode" width={1347} height={705} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
                 <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
                   A bare board. Each row of holes is one continuous strip of copper, so anything soldered into the same row is
                   joined whether you meant it or not.
@@ -115,8 +117,8 @@ export default function AutoLayoutGuidePage() {
               </P>
               <figure className="my-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <img src="/board-fully-assembled-front.jpg" alt="A finished stripboard seen from the component side: resistors, an optocoupler, capacitors, LEDs, a fuse, two connectors and coloured link wires, pushed through a printed layout" width={1500} height={1165} className="w-full h-auto rounded border border-neutral-200 dark:border-neutral-700" />
-                  <img src="/board-fully-assembled-back.jpg" alt="The same board from the copper side: solder joints along the copper strips, and a few holes drilled out to break a strip" width={1500} height={1258} className="w-full h-auto rounded border border-neutral-200 dark:border-neutral-700" />
+                  <img src={withBase("/board-fully-assembled-front.jpg")} alt="A finished stripboard seen from the component side: resistors, an optocoupler, capacitors, LEDs, a fuse, two connectors and coloured link wires, pushed through a printed layout" width={1500} height={1165} className="w-full h-auto rounded border border-neutral-200 dark:border-neutral-700" />
+                  <img src={withBase("/board-fully-assembled-back.jpg")} alt="The same board from the copper side: solder joints along the copper strips, and a few holes drilled out to break a strip" width={1500} height={1258} className="w-full h-auto rounded border border-neutral-200 dark:border-neutral-700" />
                 </div>
                 <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
                   A finished board from both sides. On the component side the parts and their coloured link wires are pushed
@@ -272,8 +274,8 @@ export default function AutoLayoutGuidePage() {
             everything that is wired off the board on its edges.
           </P>
           <figure className="my-6">
-            <img src="/guitar-pedal-off-board.png" alt="The guitar pedal benchmark circuit laid out by the layouter: a compact board with three straight link wires, drilled cuts and the solder pads for off-board parts on its edges" width={1765} height={991} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
-            <img src="/guitar-pedal-off-board-dark.png" alt="The guitar pedal benchmark circuit laid out by the layouter, dark mode" width={1765} height={991} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
+            <img src={withBase("/guitar-pedal-off-board.png")} alt="The guitar pedal benchmark circuit laid out by the layouter: a compact board with three straight link wires, drilled cuts and the solder pads for off-board parts on its edges" width={1765} height={991} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
+            <img src={withBase("/guitar-pedal-off-board-dark.png")} alt="The guitar pedal benchmark circuit laid out by the layouter, dark mode" width={1765} height={991} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
             <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
               The pots and the switch sit on the case of a pedal, not on the board, so each of their pins is a solder pad for a
               wire. The same goes for the jacks and the supply.
@@ -365,8 +367,8 @@ export default function AutoLayoutGuidePage() {
             a second resistor feeding a transistor that switches whatever hangs on the connector. Six components, six nets.
           </P>
           <figure className="my-6">
-            <img src="/annealer-demo-schematic.png" alt="Schematic of the example circuit: a 555 timer in the single-resistor astable form driving an NPN transistor that switches a load on a three-pin connector" width={1339} height={811} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
-            <img src="/annealer-demo-schematic-dark.png" alt="Schematic of the example circuit, dark mode" width={1339} height={811} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
+            <img src={withBase("/annealer-demo-schematic.png")} alt="Schematic of the example circuit: a 555 timer in the single-resistor astable form driving an NPN transistor that switches a load on a three-pin connector" width={1339} height={811} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
+            <img src={withBase("/annealer-demo-schematic-dark.png")} alt="Schematic of the example circuit, dark mode" width={1339} height={811} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
             <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
               The example circuit as drawn in the editor. A single resistor from the output back to the timing pins makes the
               555 oscillate, and the transistor switches the load on the connector.
@@ -624,7 +626,7 @@ export default function AutoLayoutGuidePage() {
           <P>
             Refer to the <Link href="/guide" className="text-[var(--copper)] hover:underline">quick guide</Link> for the buttons
             and settings. If you build something with it, or it does something odd, the{" "}
-            <Link href="/feedback" className="text-[var(--copper)] hover:underline">feedback page</Link> is the place to contact me if you like.
+            <Link href={FEEDBACK_HREF} className="text-[var(--copper)] hover:underline">feedback page</Link> is the place to contact me if you like.
           </P>
           <H2 id="notes">Final notes and references</H2>
           <P>
@@ -681,15 +683,15 @@ export default function AutoLayoutGuidePage() {
             <a href="https://stripboard-editor.com/view/96fe339f-9d00-45e3-8417-85f876e2d610" className="text-[var(--copper)] hover:underline" target="_blank" rel="noopener noreferrer">open it in the viewer</a>:
           </P>
           <figure className="my-6">
-            <img src="/Guitar-Pedal-(arXiv-2512.04910-benchmark)schematic.png" alt="Schematic of the guitar pedal benchmark circuit from arXiv 2512.04910 as drawn in the Protoboard Editor" width={1992} height={1122} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
-            <img src="/Guitar-Pedal-(arXiv-2512.04910-benchmark)schematic-dark.png" alt="Schematic of the guitar pedal benchmark circuit from arXiv 2512.04910 as drawn in the Protoboard Editor, dark mode" width={1992} height={1122} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
+            <img src={withBase("/Guitar-Pedal-(arXiv-2512.04910-benchmark)schematic.png")} alt="Schematic of the guitar pedal benchmark circuit from arXiv 2512.04910 as drawn in the Protoboard Editor" width={1992} height={1122} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
+            <img src={withBase("/Guitar-Pedal-(arXiv-2512.04910-benchmark)schematic-dark.png")} alt="Schematic of the guitar pedal benchmark circuit from arXiv 2512.04910 as drawn in the Protoboard Editor, dark mode" width={1992} height={1122} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
             <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
               The guitar pedal benchmark circuit from Li&apos;s paper, as drawn in the editor: 18 components and 12 nets.
             </figcaption>
           </figure>
           <figure className="my-6">
-            <img src="/guitar-pedal-off-board.png" alt="Automatically generated stripboard layout of the guitar-pedal benchmark circuit from arXiv 2512.04910: a compact stripboard with drilled strip cuts and only vertical link wires" width={1765} height={991} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
-            <img src="/guitar-pedal-off-board-dark.png" alt="Automatically generated stripboard layout of the guitar-pedal benchmark circuit from arXiv 2512.04910, dark mode" width={1765} height={991} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
+            <img src={withBase("/guitar-pedal-off-board.png")} alt="Automatically generated stripboard layout of the guitar-pedal benchmark circuit from arXiv 2512.04910: a compact stripboard with drilled strip cuts and only vertical link wires" width={1765} height={991} className="w-full h-auto rounded border border-neutral-200 dark:hidden" />
+            <img src={withBase("/guitar-pedal-off-board-dark.png")} alt="Automatically generated stripboard layout of the guitar-pedal benchmark circuit from arXiv 2512.04910, dark mode" width={1765} height={991} className="w-full h-auto rounded border border-neutral-700 hidden dark:block" />
             <figcaption className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
               The guitar pedal benchmark circuit from Li&apos;s paper, laid out by this site&apos;s layouter, with the three pots and the switch wired off the board.
             </figcaption>

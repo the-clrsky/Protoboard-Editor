@@ -12,6 +12,7 @@ import {
   importLibraryParts, type FoundPart, type LibraryPart, type LibraryPartUsage,
 } from "@/lib/api";
 import { useLibraryStore } from "@/store/useLibraryStore";
+import { STATIC, SELF_HOST_URL } from "@/lib/mode";
 import { track } from "@/lib/track";
 import type { ComponentDef } from "@/types";
 
@@ -45,7 +46,7 @@ function matches(def: ComponentDef, query: string, group: string): boolean {
 }
 
 export default function PartsClient() {
-  const [parts, setParts] = useState<LibraryPart[] | null | undefined>(undefined);
+  const [parts, setParts] = useState<LibraryPart[] | null | undefined>(STATIC ? null : undefined);
   const [found, setFound] = useState<FoundPart[]>([]);
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState("");
@@ -57,6 +58,7 @@ export default function PartsClient() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
+    if (STATIC) return; // no library in the browser-only build (parts start as null)
     try {
       const ps = await getLibraryParts({ usage: true });
       setParts(ps);
@@ -125,7 +127,17 @@ export default function PartsClient() {
 
         {parts === undefined && <p className="text-sm text-neutral-500">Loading…</p>}
 
-        {parts === null && (
+        {parts === null && STATIC && (
+          <div className={`${card} p-6`}>
+            <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-3">
+              This browser-only version has no parts library. A custom part is kept inside its project, and Export / Import
+              carry it with the project. The self-hosted version adds a library for all your projects.
+            </p>
+            <a href={SELF_HOST_URL} target="_blank" rel="noopener noreferrer" className={link}>How to self-host</a>
+          </div>
+        )}
+
+        {parts === null && !STATIC && (
           <div className={`${card} p-6`}>
             <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-3">
               Log in to keep custom parts in your own library and use them in all your projects.

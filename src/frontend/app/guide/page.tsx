@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
+import { withBase } from "@/lib/mode";
 import type { ReactNode } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import ReadDepth from "@/components/ReadDepth";
@@ -10,8 +12,8 @@ export const metadata: Metadata = {
   description:
     "A quick guide to the Protoboard Editor covering keyboard shortcuts, workflow, the automatic layouter, KiCad netlist export, and key concepts.",
   alternates: {
-    canonical: "http://localhost:3000/guide",
-    types: { "text/markdown": "http://localhost:3000/guide.md" },
+    canonical: `${SITE_URL}/guide`,
+    types: { "text/markdown": `${SITE_URL}/guide.md` },
   },
 };
 
@@ -80,12 +82,12 @@ export default function GuidePage() {
 
         <section className="mb-10">
           <img
-            src="/demo-circuit.png"
+            src={withBase("/demo-circuit.png")}
             alt="Example finished circuit with schematic and stripboard"
             className="rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full dark:hidden"
           />
           <img
-            src="/demo-circuit-dark.png"
+            src={withBase("/demo-circuit-dark.png")}
             alt="Example finished circuit with schematic and stripboard"
             className="rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm dark:shadow-neutral-900/30 w-full hidden dark:block"
           />

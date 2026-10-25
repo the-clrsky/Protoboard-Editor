@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import ReadDepth from "@/components/ReadDepth";
 import TrackedLink from "@/components/TrackedLink";
 import SiteFooter from "@/components/SiteFooter";
 import { UPDATES, PLANNED } from "@/data/updates";
+import { FEEDBACK_HREF } from "@/lib/mode";
 
 export const metadata: Metadata = {
   title: "What's New",
   description:
     "Recent updates to the Protoboard Editor and a look at what is planned next.",
   alternates: {
-    canonical: "http://localhost:3000/updates",
-    types: { "text/markdown": "http://localhost:3000/updates.md" },
+    canonical: `${SITE_URL}/updates`,
+    types: { "text/markdown": `${SITE_URL}/updates.md` },
   },
 };
 
@@ -63,7 +65,7 @@ export default function UpdatesPage() {
 
           {/* Feedback callout */}
           <Link
-            href="/feedback"
+            href={FEEDBACK_HREF}
             className="block mt-10 rounded-lg border-2 border-dashed border-[var(--copper)] px-4 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors"
           >
             <span className="font-mono text-sm text-[var(--copper)]">Leave me a message →</span>

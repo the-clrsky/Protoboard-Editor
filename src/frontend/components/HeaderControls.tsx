@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getHeaderState, logout, type User } from "@/lib/api";
+import { STATIC } from "@/lib/mode";
 import AuthModal from "./AuthModal";
 
 // The whole right side of the header: staff inbox link, new-reply indicator, and
@@ -18,6 +19,7 @@ export default function HeaderControls({ actions }: { actions?: React.ReactNode 
   const [showAuth, setShowAuth] = useState<"login" | "register" | null>(null);
 
   useEffect(() => {
+    if (STATIC) return; // no accounts in the browser-only build
     let active = true;
     const load = () =>
       getHeaderState().then((s) => {
@@ -41,6 +43,8 @@ export default function HeaderControls({ actions }: { actions?: React.ReactNode 
     setUser(null);
     router.refresh();
   };
+
+  if (STATIC) return <>{actions}</>;
 
   return (
     <>

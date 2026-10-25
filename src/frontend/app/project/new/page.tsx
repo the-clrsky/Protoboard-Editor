@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
-import { createProject, migrateProjectData } from "@/lib/api";
+import { createProject, saveProject, projectEditPath, migrateProjectData } from "@/lib/projects";
+import { BASE_PATH, STATIC, withBase } from "@/lib/mode";
 import { PROJECT_SCHEMA_VERSION, type Project } from "@/types";
 import { track } from "@/lib/track";
 import { loadDraft, saveDraft, clearDraft, draftAge, type ProjectDraft } from "@/lib/newProjectDraft";
@@ -87,7 +88,9 @@ export default function NewProjectPage() {
       try {
         project = (await migrateProjectData(project)) as Project;
       } catch {
-        alert("Could not restore the previous design: migrating it to the current version failed.");
+        alert(STATIC
+          ? "Could not restore the previous design: it is from an older version of the editor."
+          : "Could not restore the previous design: migrating it to the current version failed.");
         return;
       }
     }
@@ -118,20 +121,19 @@ export default function NewProjectPage() {
       const seq = useProjectStore.getState()._editSeq;
       const projectData = exportProject();
       if (!editUuid) {
-        // First save: create in DB
+        // First save: create in DB (static build: in this browser)
         const project = await createProject(
           projectData.name,
           projectData as unknown as Record<string, unknown>
         );
         setEditUuid(project.edit_uuid);
         setViewUuid(project.view_uuid);
-        // Now persisted server-side — the local draft is no longer needed.
+        // Now persisted — the draft is no longer needed.
         clearDraft();
         // Replace URL without full reload so state is preserved
-        window.history.replaceState(null, "", `/project/${project.edit_uuid}`);
+        window.history.replaceState(null, "", `${BASE_PATH}${projectEditPath(project.edit_uuid)}`);
       } else {
         // Subsequent saves: update existing
-        const { saveProject } = await import("@/lib/api");
         await saveProject(editUuid, projectData.name, projectData as unknown as Record<string, unknown>);
       }
       if (useProjectStore.getState()._editSeq === seq) markClean();
@@ -179,7 +181,7 @@ export default function NewProjectPage() {
     return (
       <div className="flex flex-col h-screen bg-[#fafafa] dark:bg-[#121212]">
         <div className="bg-[#113768] text-white px-4 py-3">
-          <a href="/" className="font-semibold tracking-wide hover:opacity-80 transition-opacity text-sm">
+          <a href={withBase("/")} className="font-semibold tracking-wide hover:opacity-80 transition-opacity text-sm">
             Protoboard Editor
           </a>
         </div>
@@ -190,7 +192,7 @@ export default function NewProjectPage() {
               The editor is designed for desktop use. Please open this page on a computer to create and edit projects.
             </p>
             <a
-              href="/"
+              href={withBase("/")}
               className="inline-block bg-[#113768] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#0d2a50] transition-colors"
             >
               Back to home

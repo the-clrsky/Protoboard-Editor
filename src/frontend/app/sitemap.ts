@@ -1,5 +1,10 @@
 import type { MetadataRoute } from "next";
 import { LAST_UPDATE_DATE } from "@/data/agentDocs";
+import { SITE_URL } from "@/lib/site";
+import { STATIC } from "@/lib/mode";
+
+// Built once (needed by output: "export"); nothing here reads the request.
+export const dynamic = "force-static";
 
 // Dates are when the page's content last changed, not when it was last built:
 // a build-time date tells crawlers every page changed at once on every deploy,
@@ -13,9 +18,9 @@ const PAGES: [path: string, lastModified: string, changeFrequency: "monthly" | "
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "http://localhost:3000";
   return PAGES.map(([path, lastModified, changeFrequency, priority]) => ({
-    url: `${baseUrl}${path}`,
+    // The static build has trailingSlash, so its canonical URLs end in "/"
+    url: `${SITE_URL}${path}${STATIC ? "/" : ""}`,
     lastModified,
     changeFrequency,
     priority,
