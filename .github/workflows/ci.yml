@@ -1,0 +1,50 @@
+# Checks a pull request: board tests, the self-hosted build and the
+# browser-only build (src/frontend/lib/mode.ts).
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run test:board
+
+      # Self-hosted build: the API URL only has to be set, nothing is called
+      - name: Full build
+        run: npx next build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api
+
+      - name: Static build (GitHub Pages)
+        run: npx next build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /Protoboard-Editor
+          NEXT_PUBLIC_SITE_URL: https://sadmanbishal.com/Protoboard-Editor

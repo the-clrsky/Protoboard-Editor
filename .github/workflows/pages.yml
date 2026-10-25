@@ -1,0 +1,73 @@
+# Browser-only build of the editor on GitHub Pages (src/frontend/lib/mode.ts).
+# One-time setup: repo Settings > Pages > Source = "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a running one is allowed to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  build:
+    # Linux only: a static export built on Windows writes its prefetch files as
+    # x/__next.x/__PAGE__.txt instead of x/__next.x.__PAGE__.txt (Next.js joins
+    # the segment path with "\"), so every <Link> prefetch gets a 404.
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      # Site URL and base path of this Pages site, e.g.
+      # https://sadmanbishal.com/Protoboard-Editor and /Protoboard-Editor
+      - id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - run: npm ci
+
+      - run: npm run test:board
+
+      # No NEXT_PUBLIC_API_URL: that makes the static, browser-only build (lib/mode.ts)
+      - name: Static build
+        run: |
+          echo "base path: '$NEXT_PUBLIC_BASE_PATH', site URL: '$NEXT_PUBLIC_SITE_URL'"
+          npx next build
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          NEXT_PUBLIC_SITE_URL: ${{ steps.pages.outputs.base_url }}
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: src/frontend/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
